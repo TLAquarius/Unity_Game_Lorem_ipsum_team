@@ -5,11 +5,11 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Movement Stats")]
     public float moveSpeed = 8f;
-    public float jumpForce = 16f; // Increased because we are increasing gravity
+    public float jumpForce = 16f;
 
     [Header("Physics Feel (Snappy Falling)")]
-    public float fallMultiplier = 2.5f; // Gravity increases when falling
-    public float lowJumpMultiplier = 2f; // Gravity increases if you tap space lightly
+    public float fallMultiplier = 2.5f;
+    public float lowJumpMultiplier = 2f;
 
     [Header("Abilities")]
     public bool canDoubleJumpUnlocked = true;
@@ -18,8 +18,8 @@ public class PlayerController : MonoBehaviour
     [Header("Wall Interaction")]
     public Transform wallCheck;
     public float wallSlidingSpeed = 2f;
-    public Vector2 wallJumpPower = new Vector2(8f, 16f); // X is push-off force, Y is up force
-    public float wallJumpDuration = 0.2f; // Time input is ignored after wall jump
+    public Vector2 wallJumpPower = new Vector2(8f, 16f);
+    public float wallJumpDuration = 0.2f;
     private bool isWallSliding;
     private bool isWallJumping;
 
@@ -33,6 +33,7 @@ public class PlayerController : MonoBehaviour
     [Header("Checks")]
     public Transform groundCheck;
     public float checkRadius = 0.2f;
+    public Vector2 wallCheckSize = new Vector2(0.5f, 1.5f);
     public LayerMask groundLayer;
     public LayerMask wallLayer;
 
@@ -60,7 +61,6 @@ public class PlayerController : MonoBehaviour
         if (isDashing) return;
 
         // 1. INPUT
-        // We only read input if we are NOT currently in the middle of a wall jump kick
         if (!isWallJumping)
         {
             horizontalInput = Input.GetAxisRaw("Horizontal");
@@ -73,14 +73,17 @@ public class PlayerController : MonoBehaviour
         // 2. JUMP INPUT
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            if (isWallSliding && canWallJumpUnlocked)
+            // Priority 1: Wall Jump (Must be sliding or touching wall in air)
+            if (isTouchingWall && !isGrounded && canWallJumpUnlocked)
             {
                 StartCoroutine(WallJumpRoutine());
             }
+            // Priority 2: Ground Jump
             else if (isGrounded)
             {
                 Jump();
             }
+            // Priority 3: Double Jump
             else if (canDoubleJumpUnlocked && doubleJumpAvailable)
             {
                 Jump();
@@ -102,50 +105,42 @@ public class PlayerController : MonoBehaviour
         if (isDashing) return;
 
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, checkRadius, groundLayer);
-        isTouchingWall = Physics2D.OverlapCircle(wallCheck.position, checkRadius, wallLayer);
+        isTouchingWall = Physics2D.OverlapBox(wallCheck.position, wallCheckSize, 0f, wallLayer);
 
-        // Reset Double Jump
-        if (isGrounded && !Input.GetKey(KeyCode.Space))
+        // --- DOUBLE JUMP RESET ---
+        // Reset if we touch Ground OR start Wall Sliding
+        if ((isGrounded || isWallSliding) && !Input.GetKey(KeyCode.Space))
         {
             doubleJumpAvailable = true;
-            isWallJumping = false; // Safety reset
+            isWallJumping = false;
         }
 
-        // --- SECTION 1: MOVEMENT ---
-        // Only move if not wall jumping
+        // --- MOVEMENT ---
         if (!isWallJumping && !isWallSliding)
         {
             rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
         }
-        else if (isWallSliding)
-        {
-            // Optional: Allow slight movement off wall to let go? 
-            // For now, we lock X movement while sliding to stick to wall
-        }
 
-        // Flip Character
+        // Flip Character (Only if not wall jumping)
         if (!isWallJumping && horizontalInput != 0)
         {
             transform.localScale = new Vector3(horizontalInput, 1, 1);
         }
 
-        // --- SECTION 2: BETTER GRAVITY (Snappy Fall) ---
+        // --- GRAVITY ---
         ApplyBetterGravity();
     }
 
     void ApplyBetterGravity()
     {
-        // 1. Fast Falling: If we are falling (velocity < 0)
         if (rb.linearVelocity.y < 0)
         {
             rb.gravityScale = fallMultiplier;
         }
-        // 2. Short Hop: If we are jumping up but let go of Space
         else if (rb.linearVelocity.y > 0 && !Input.GetKey(KeyCode.Space) && !isWallJumping)
         {
             rb.gravityScale = lowJumpMultiplier;
         }
-        // 3. Normal Gravity
         else
         {
             rb.gravityScale = 1f;
@@ -154,19 +149,22 @@ public class PlayerController : MonoBehaviour
 
     void Jump()
     {
-        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0); // Reset Y for consistent height
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0);
         rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
     }
 
     void CheckWallSlide()
     {
+        // Conditions: Touching wall, In Air, Falling Down
         if (isTouchingWall && !isGrounded && rb.linearVelocity.y < 0)
         {
-            // Only slide if pushing TOWARDS the wall (Optional, but feels better)
-            if (horizontalInput != 0)
+            // CRITICAL FIX: Only slide if pushing INTO the wall.
+            // Since 'wallCheck' is in front, if Input matches Facing Direction, we are pushing into it.
+            // If Input is 0 (Let go) or Opposite (Pull away), we STOP sliding.
+            if (horizontalInput == facingDirection)
             {
                 isWallSliding = true;
-                // Clamp fall speed
+                // Clamp fall speed for the "Slide" effect
                 rb.linearVelocity = new Vector2(rb.linearVelocity.x, Mathf.Clamp(rb.linearVelocity.y, -wallSlidingSpeed, float.MaxValue));
             }
             else
@@ -180,27 +178,24 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // --- SECTION 3: WALL JUMP WITH MOVEMENT LOCK ---
     IEnumerator WallJumpRoutine()
     {
         isWallSliding = false;
-        isWallJumping = true; // LOCK MOVEMENT
+        isWallJumping = true;
 
-        // Calculate direction: Jump AWAY from wall
-        // If facing Right (1), we want to jump Left (-1)
+        // Jump AWAY from wall
         float jumpDirection = -facingDirection;
 
-        // Force: X pushes away, Y pushes up
+        // Apply Force
         rb.linearVelocity = new Vector2(jumpDirection * wallJumpPower.x, wallJumpPower.y);
 
-        // Check facing direction to flip sprite immediately
+        // Visual Flip
         transform.localScale = new Vector3(jumpDirection, 1, 1);
         facingDirection = (int)jumpDirection;
 
-        // Wait for a fraction of a second (The "Kick" time)
+        // Lock Input for a split second
         yield return new WaitForSeconds(wallJumpDuration);
 
-        // Unlock movement
         isWallJumping = false;
     }
 
@@ -229,7 +224,15 @@ public class PlayerController : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        if (groundCheck != null) Gizmos.DrawWireSphere(groundCheck.position, checkRadius);
-        if (wallCheck != null) Gizmos.DrawWireSphere(wallCheck.position, checkRadius);
+        if (groundCheck != null)
+        {
+            Gizmos.color = Color.blue;
+            Gizmos.DrawWireSphere(groundCheck.position, checkRadius);
+        }
+        if (wallCheck != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireCube(wallCheck.position, wallCheckSize);
+        }
     }
 }

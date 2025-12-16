@@ -56,7 +56,7 @@ Transform:
   m_GameObject: {fileID: 952742191822608745}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.45, y: 0.24, z: 0}
+  m_LocalPosition: {x: 0.45, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -238,22 +238,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 5
   jumpForce: 10
+  fallMultiplier: 2.5
+  lowJumpMultiplier: 2
   canDoubleJumpUnlocked: 1
   canWallJumpUnlocked: 1
-  dashSpeed: 15
-  dashDuration: 0.2
-  dashCooldown: 1
   wallCheck: {fileID: 3313043546632352001}
   wallSlidingSpeed: 2
   wallJumpPower: {x: 8, y: 12}
+  wallJumpDuration: 0.2
+  dashSpeed: 15
+  dashDuration: 0.2
+  dashCooldown: 1
   groundCheck: {fileID: 5040311598454164756}
   checkRadius: 0.2
+  wallCheckSize: {x: 0.5, y: 2}
   groundLayer:
     serializedVersion: 2
-    m_Bits: 128
+    m_Bits: 640
   wallLayer:
     serializedVersion: 2
-    m_Bits: 128
+    m_Bits: 640
 --- !u!114 &1270755933087317527
 MonoBehaviour:
   m_ObjectHideFlags: 0
