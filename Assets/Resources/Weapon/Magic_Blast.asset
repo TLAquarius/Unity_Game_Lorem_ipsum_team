@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 248ae09f6930bad45890e74522d761b1, type: 3}
+  m_Name: Magic_Blast
+  m_EditorClassIdentifier: 
+  weaponName: Arcane Blast
+  icon: {fileID: 0}
+  description: 
+  damage: 15
+  attackRate: 3
+  attackRange: 0.5
+  isRanged: 1
+  projectilePrefab: {fileID: 7455733697091052731, guid: a4942d6418e41234f85fae09eff1c235, type: 3}
+  projectileSpeed: 10
+  weaponColor: {r: 0.81886786, g: 0.770925, b: 0.11587741, a: 1}
