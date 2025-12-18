@@ -318,14 +318,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c8343c78f00d6f8468785351201aacfd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mainWeapon: {fileID: 0}
-  subWeapon: {fileID: 0}
+  mainWeapon: {fileID: 11400000, guid: fdce653262974b748b5e801af043edd6, type: 2}
+  subWeapon: {fileID: 11400000, guid: 5c4715ea728055d45b4effd500b7144b, type: 2}
   comboResetTime: 1
   attackPoint: {fileID: 6508272616360623557}
   firePoint: {fileID: 2855774826249202870}
   enemyLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 256
   currentAttackRadius: 0.5
 --- !u!114 &8790374204538252808
 MonoBehaviour:

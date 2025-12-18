@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Magic_Blast
   m_EditorClassIdentifier: 
   weaponName: Arcane Blast
-  icon: {fileID: 0}
+  icon: {fileID: -2692553051323357149, guid: 166b074b9b50547499b7317562b16cb6, type: 3}
   description: 
   damage: 15
   attackRate: 3
@@ -21,4 +21,4 @@ MonoBehaviour:
   isRanged: 1
   projectilePrefab: {fileID: 7455733697091052731, guid: a4942d6418e41234f85fae09eff1c235, type: 3}
   projectileSpeed: 10
-  weaponColor: {r: 0.81886786, g: 0.770925, b: 0.11587741, a: 1}
+  weaponColor: {r: 1, g: 1, b: 1, a: 1}

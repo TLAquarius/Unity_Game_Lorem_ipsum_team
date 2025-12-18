@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Sword_Fire
   m_EditorClassIdentifier: 
   weaponName: Fire Blade
-  icon: {fileID: 0}
+  icon: {fileID: -1427383872398785206, guid: 0161278431f1b224eacffbec615bc608, type: 3}
   description: 
   damage: 40
   attackRate: 1.2
@@ -21,4 +21,4 @@ MonoBehaviour:
   isRanged: 0
   projectilePrefab: {fileID: 0}
   projectileSpeed: 10
-  weaponColor: {r: 0.83396226, g: 0.18095396, b: 0.18095396, a: 1}
+  weaponColor: {r: 1, g: 1, b: 1, a: 1}

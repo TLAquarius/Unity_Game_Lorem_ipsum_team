@@ -131,8 +131,7 @@ public class WeaponController : MonoBehaviour
     // TRIGGERED BY ANIMATION EVENT
     public void AnimationEvent_DealDamage()
     {
-        // --- UNLOCK INPUT ---
-        // The bullet has spawned, so the player is allowed to attack again now.
+        Debug.Log("Event Fired!");
         isShooting = false;
 
         if (activeWeapon == null) return;
