@@ -155,7 +155,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 1, y: 2}
+  m_Size: {x: 2.7916667, y: 1.9166666}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -227,7 +227,7 @@ BoxCollider2D:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.74, y: 0.5}
     oldSize: {x: 1.8333334, y: 1.6666666}
-    newSize: {x: 1, y: 2}
+    newSize: {x: 2.7916667, y: 1.9166666}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
@@ -261,7 +261,7 @@ MonoBehaviour:
   dashDuration: 0.2
   dashCooldown: 1
   groundCheck: {fileID: 5040311598454164756}
-  wallCheckSize: {x: 0.4, y: 1.7}
+  wallCheckSize: {x: 0.4, y: 1.6}
   groundCheckSize: {x: 0.8, y: 0.2}
   groundLayer:
     serializedVersion: 2
@@ -318,13 +318,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c8343c78f00d6f8468785351201aacfd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentWeapon: {fileID: 0}
-  attackPoint: {fileID: 0}
-  firePoint: {fileID: 0}
-  weaponRenderer: {fileID: 0}
+  mainWeapon: {fileID: 0}
+  subWeapon: {fileID: 0}
+  comboResetTime: 1
+  attackPoint: {fileID: 6508272616360623557}
+  firePoint: {fileID: 2855774826249202870}
   enemyLayers:
     serializedVersion: 2
     m_Bits: 0
+  currentAttackRadius: 0.5
 --- !u!114 &8790374204538252808
 MonoBehaviour:
   m_ObjectHideFlags: 0

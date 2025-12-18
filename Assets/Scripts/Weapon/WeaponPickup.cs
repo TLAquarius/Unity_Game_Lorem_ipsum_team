@@ -1,10 +1,10 @@
 using UnityEngine;
 
-public class WeaponPickup : MonoBehaviour
+public class WeaponPickup : MonoBehaviour, IInteractable
 {
-    public WeaponData weaponToDrop; // Which weapon is this?
+    public WeaponData weaponToDrop;
+    public bool equipToMainSlot = true; // Check this in Inspector if it's a Main Weapon
 
-    // Optional: Visual setup
     private SpriteRenderer sr;
 
     void Start()
@@ -12,24 +12,25 @@ public class WeaponPickup : MonoBehaviour
         sr = GetComponent<SpriteRenderer>();
         if (sr != null && weaponToDrop != null)
         {
-            sr.sprite = weaponToDrop.icon; // Show the correct sword/bow icon on ground
+            sr.sprite = weaponToDrop.icon;
             sr.color = weaponToDrop.weaponColor;
         }
+        // Ensure this object is on the "Interactable" Layer!
+        gameObject.layer = LayerMask.NameToLayer("Interactable");
     }
 
-    void OnTriggerEnter2D(Collider2D collision)
+    // This function runs when Player stands close and presses 'F'
+    public void Interact()
     {
-        if (collision.CompareTag("Player"))
-        {
-            WeaponController playerWeapon = collision.GetComponent<WeaponController>();
-            if (playerWeapon != null)
-            {
-                // Equip the new weapon
-                playerWeapon.EquipWeapon(weaponToDrop);
+        // Find the player (who called this function?)
+        // Since Interact() doesn't pass the player, we find them or use a singleton.
+        // For simplicity, we assume Player is near.
+        WeaponController playerWeapon = FindFirstObjectByType<WeaponController>();
 
-                // Destroy the pickup object
-                Destroy(gameObject);
-            }
+        if (playerWeapon != null)
+        {
+            playerWeapon.EquipWeapon(weaponToDrop, equipToMainSlot);
+            Destroy(gameObject); // Disappear
         }
     }
 }

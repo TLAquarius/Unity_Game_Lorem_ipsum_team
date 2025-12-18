@@ -55,7 +55,6 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        // Get the Animator you just added
         anim = GetComponent<Animator>();
 
         playerLayer = LayerMask.NameToLayer("Player");
@@ -66,11 +65,23 @@ public class PlayerController : MonoBehaviour
     {
         if (isDashing) return;
 
+        // 1. INPUT
         if (!isWallJumping) horizontalInput = Input.GetAxisRaw("Horizontal");
 
-        if (horizontalInput > 0) facingDirection = 1;
-        else if (horizontalInput < 0) facingDirection = -1;
+        // 2. FLIP CHARACTER INSTANTLY (Moved from FixedUpdate)
+        // This moves the 'WallCheck' object immediately so we don't detect the wall behind us
+        if (!isWallJumping && horizontalInput != 0)
+        {
+            facingDirection = (horizontalInput > 0) ? 1 : -1;
+            transform.localScale = new Vector3(facingDirection, 1, 1);
+        }
 
+        // 3. UPDATE CHECKS INSTANTLY
+        // Perform these checks here so animation doesn't lag behind physics
+        isGrounded = Physics2D.OverlapBox(groundCheck.position, groundCheckSize, 0f, groundLayer);
+        isTouchingWall = Physics2D.OverlapBox(wallCheck.position, wallCheckSize, 0f, wallLayer);
+
+        // 4. JUMP LOGIC
         if (Input.GetKeyDown(KeyCode.Space))
         {
             if (isTouchingWall && !isGrounded && canWallJumpUnlocked) StartCoroutine(WallJumpRoutine());
@@ -84,28 +95,24 @@ public class PlayerController : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.LeftShift) && canDash) StartCoroutine(DashRoutine());
 
+        // 5. SLIDE LOGIC
         CheckWallSlide();
 
-        // --- NEW: UPDATE ANIMATIONS ---
+        // 6. ANIMATIONS
         UpdateAnimations();
     }
 
-    // --- NEW FUNCTION ---
     void UpdateAnimations()
     {
         if (anim == null) return;
 
-        // 1. Run vs Idle (HeroKnight uses 0 for Idle, 1 for Run)
         if (Mathf.Abs(horizontalInput) > 0.1f)
             anim.SetInteger("AnimState", 1);
         else
             anim.SetInteger("AnimState", 0);
 
-        // 2. Air Physics
         anim.SetBool("Grounded", isGrounded);
         anim.SetFloat("AirSpeedY", rb.linearVelocity.y);
-
-        // 3. Wall Slide
         anim.SetBool("WallSlide", isWallSliding);
     }
 
@@ -113,24 +120,21 @@ public class PlayerController : MonoBehaviour
     {
         if (isDashing) return;
 
-        isGrounded = Physics2D.OverlapBox(groundCheck.position, groundCheckSize, 0f, groundLayer);
-        isTouchingWall = Physics2D.OverlapBox(wallCheck.position, wallCheckSize, 0f, wallLayer);
-
+        // Note: isGrounded/isTouchingWall checks moved to Update for responsiveness
+        // Reset Double Jump
         if ((isGrounded || isWallSliding) && !Input.GetKey(KeyCode.Space))
         {
             doubleJumpAvailable = true;
             isWallJumping = false;
         }
 
+        // Apply Movement
         if (!isWallJumping && !isWallSliding)
         {
             rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
         }
 
-        if (!isWallJumping && horizontalInput != 0)
-        {
-            transform.localScale = new Vector3(horizontalInput, 1, 1);
-        }
+        // Removed Transform Flip from here to avoid the lag
 
         ApplyBetterGravity();
     }
@@ -146,8 +150,6 @@ public class PlayerController : MonoBehaviour
     {
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0);
         rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
-
-        // Trigger Jump Anim
         if (anim != null) anim.SetTrigger("Jump");
     }
 
@@ -155,6 +157,10 @@ public class PlayerController : MonoBehaviour
     {
         if (isTouchingWall && !isGrounded && rb.linearVelocity.y < 0)
         {
+            // Now that 'facingDirection' updates instantly in Update(),
+            // if you press AWAY from the wall, facingDirection flips, 
+            // wallCheck moves away, isTouchingWall becomes false instantly.
+            // But if we are still technically touching it, this logic ensures we must be pushing INTO it.
             if (horizontalInput == facingDirection)
             {
                 isWallSliding = true;
@@ -167,17 +173,11 @@ public class PlayerController : MonoBehaviour
 
     public void AE_SlideDust()
     {
-        // Check if we have a prefab and if we are actually on the wall
         if (wallSlideDustPrefab != null && wallCheck != null)
         {
-            // Spawn the dust at the wallCheck position (where player touches wall)
             GameObject dust = Instantiate(wallSlideDustPrefab, wallCheck.position, Quaternion.identity);
-
-            // Optional: Flip dust if facing left/right so it blows away from wall
-            // (Assuming standard particle rotation)
             if (transform.localScale.x < 0)
             {
-                // If facing left, rotate dust to face left
                 Vector3 rot = dust.transform.rotation.eulerAngles;
                 rot.y = 180;
                 dust.transform.rotation = Quaternion.Euler(rot);
@@ -190,11 +190,12 @@ public class PlayerController : MonoBehaviour
         isWallSliding = false;
         isWallJumping = true;
 
-        // Trigger Jump Anim (Some packs reuse Jump for WallJump)
         if (anim != null) anim.SetTrigger("Jump");
 
         float jumpDirection = -facingDirection;
         rb.linearVelocity = new Vector2(jumpDirection * wallJumpPower.x, wallJumpPower.y);
+
+        // Force flip immediately for the jump visual
         transform.localScale = new Vector3(jumpDirection, 1, 1);
         facingDirection = (int)jumpDirection;
 
@@ -207,7 +208,6 @@ public class PlayerController : MonoBehaviour
         canDash = false;
         isDashing = true;
 
-        // Trigger Roll Anim
         if (anim != null) anim.SetTrigger("Roll");
 
         PlayerStats stats = GetComponent<PlayerStats>();
@@ -229,7 +229,6 @@ public class PlayerController : MonoBehaviour
         canDash = true;
     }
 
-    // ... OnDrawGizmos remains the same ...
     void OnDrawGizmosSelected()
     {
         if (groundCheck != null) { Gizmos.color = Color.blue; Gizmos.DrawWireCube(groundCheck.position, groundCheckSize); }

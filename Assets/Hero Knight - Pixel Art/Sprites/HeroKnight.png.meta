@@ -832,10 +832,10 @@ TextureImporter:
         serializedVersion: 2
         x: 22
         y: 332
-        width: 39
-        height: 39
+        width: 75
+        height: 50
       alignment: 9
-      pivot: {x: 0.7274344, y: 0.5}
+      pivot: {x: 0.39741108, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -844,28 +844,6 @@ TextureImporter:
       bones: []
       spriteID: 848cbe96f6a7eea46adc5fee3655b487
       internalID: 21300040
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: HeroKnight_21
-      rect:
-        serializedVersion: 2
-        x: 37
-        y: 341
-        width: 60
-        height: 41
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: d7948cc803899da409505d653d8033d6
-      internalID: 21300042
       vertices: []
       indices: 
       edges: []
@@ -964,10 +942,10 @@ TextureImporter:
         serializedVersion: 2
         x: 511
         y: 332
-        width: 50
-        height: 39
+        width: 86
+        height: 41
       alignment: 9
-      pivot: {x: 0.7446875, y: 0.5}
+      pivot: {x: 0.45123363, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -976,28 +954,6 @@ TextureImporter:
       bones: []
       spriteID: b0a971e0bfdaa9149ba779bb42735d36
       internalID: 21300052
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: HeroKnight_27
-      rect:
-        serializedVersion: 2
-        x: 553
-        y: 351
-        width: 44
-        height: 22
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 0cdcdc4da4b0ab845810ec877f016200
-      internalID: 21300054
       vertices: []
       indices: 
       edges: []
@@ -1140,10 +1096,10 @@ TextureImporter:
         serializedVersion: 2
         x: 234
         y: 277
-        width: 56
-        height: 34
+        width: 66
+        height: 50
       alignment: 9
-      pivot: {x: 0.4064064, y: 0.5}
+      pivot: {x: 0.3089239, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -1152,28 +1108,6 @@ TextureImporter:
       bones: []
       spriteID: 02a92ddf2c00f7c4ea39f2514e0447b5
       internalID: 21300068
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: HeroKnight_35
-      rect:
-        serializedVersion: 2
-        x: 240
-        y: 282
-        width: 60
-        height: 45
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: dbb9b633f82f9fe4ca98ca9593a1ef7d
-      internalID: 21300070
       vertices: []
       indices: 
       edges: []
@@ -1957,7 +1891,7 @@ TextureImporter:
         width: 53
         height: 46
       alignment: 9
-      pivot: {x: 0.5870246, y: 0.5}
+      pivot: {x: 0.5870246, y: 0.45}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
