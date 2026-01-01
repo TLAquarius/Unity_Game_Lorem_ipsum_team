@@ -7,23 +7,24 @@ public class PlayerInventory : MonoBehaviour
     public int potionCount = 0;
     public int maxPotions = 3; // Limit how many they can carry
     public float healAmount = 30f;
-    public KeyCode healKey = KeyCode.H; // Press 'H' to use
 
     [Header("UI Reference")]
     public Text potionCountText; // Drag a UI Text here later
 
     private PlayerStats stats;
+    private GameInput input;
 
     void Start()
     {
         stats = GetComponent<PlayerStats>();
+        input = GetComponent<GameInput>();
         UpdateUI();
     }
 
     void Update()
     {
         // Check for Input
-        if (Input.GetKeyDown(healKey))
+        if (input.IsHealPressed())
         {
             UsePotion();
         }

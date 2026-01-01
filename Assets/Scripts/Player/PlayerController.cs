@@ -41,6 +41,7 @@ public class PlayerController : MonoBehaviour
     public LayerMask wallLayer;
 
     // --- NEW: ANIMATOR REFERENCE ---
+    private GameInput input;
     private Animator anim;
     private Rigidbody2D rb;
     private float horizontalInput;
@@ -56,6 +57,7 @@ public class PlayerController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
+        input = GetComponent<GameInput>();
 
         playerLayer = LayerMask.NameToLayer("Player");
         enemyLayer = LayerMask.NameToLayer("Enemy");
@@ -66,7 +68,11 @@ public class PlayerController : MonoBehaviour
         if (isDashing) return;
 
         // 1. INPUT
-        if (!isWallJumping) horizontalInput = Input.GetAxisRaw("Horizontal");
+        if (!isWallJumping)
+        {
+            Vector2 move = input.GetMovementInput();
+            horizontalInput = move.x;
+        }
 
         // 2. FLIP CHARACTER INSTANTLY (Moved from FixedUpdate)
         // This moves the 'WallCheck' object immediately so we don't detect the wall behind us
@@ -82,7 +88,7 @@ public class PlayerController : MonoBehaviour
         isTouchingWall = Physics2D.OverlapBox(wallCheck.position, wallCheckSize, 0f, wallLayer);
 
         // 4. JUMP LOGIC
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (input.IsJumpPressed())
         {
             if (isTouchingWall && !isGrounded && canWallJumpUnlocked) StartCoroutine(WallJumpRoutine());
             else if (isGrounded) Jump();
@@ -93,7 +99,8 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.LeftShift) && canDash) StartCoroutine(DashRoutine());
+        if (input.IsDashPressed() && canDash)
+            StartCoroutine(DashRoutine());
 
         // 5. SLIDE LOGIC
         CheckWallSlide();
@@ -122,7 +129,7 @@ public class PlayerController : MonoBehaviour
 
         // Note: isGrounded/isTouchingWall checks moved to Update for responsiveness
         // Reset Double Jump
-        if ((isGrounded || isWallSliding) && !Input.GetKey(KeyCode.Space))
+        if ((isGrounded || isWallSliding) && !input.IsJumpHeld())
         {
             doubleJumpAvailable = true;
             isWallJumping = false;
@@ -142,7 +149,7 @@ public class PlayerController : MonoBehaviour
     void ApplyBetterGravity()
     {
         if (rb.linearVelocity.y < 0) rb.gravityScale = fallMultiplier;
-        else if (rb.linearVelocity.y > 0 && !Input.GetKey(KeyCode.Space) && !isWallJumping) rb.gravityScale = lowJumpMultiplier;
+        else if (rb.linearVelocity.y > 0 && !input.IsJumpHeld() && !isWallJumping) rb.gravityScale = lowJumpMultiplier;
         else rb.gravityScale = 1f;
     }
 

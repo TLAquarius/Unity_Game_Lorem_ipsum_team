@@ -28,10 +28,13 @@ public class WeaponController : MonoBehaviour
     public float currentAttackRadius = 0.5f;
 
     private Animator anim;
+    private GameInput input;
 
     void Start()
     {
         anim = GetComponent<Animator>();
+        input = GetComponent<GameInput>();
+
         if (mainWeapon != null)
         {
             UpdateVisuals(mainWeapon);
@@ -49,12 +52,12 @@ public class WeaponController : MonoBehaviour
         }
 
         // 2. BUFFER INPUT
-        if (Input.GetKeyDown(KeyCode.Z))
+        if (input.IsAttackMainPressed())
         {
             lastInputTime = Time.time;
             bufferedMainAttack = true;
         }
-        else if (Input.GetKeyDown(KeyCode.X))
+        else if (input.IsAttackSubPressed())
         {
             lastInputTime = Time.time;
             bufferedMainAttack = false;
