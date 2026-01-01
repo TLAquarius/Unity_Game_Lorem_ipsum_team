@@ -236,6 +236,28 @@ public class PlayerController : MonoBehaviour
         canDash = true;
     }
 
+    public void SaveData(SaveData data)
+    {
+        // Save Abilities
+        if (canDoubleJumpUnlocked) data.unlockedFlags.Add("DoubleJump");
+        if (canWallJumpUnlocked) data.unlockedFlags.Add("WallJump");
+
+        // Save Position
+        data.positionX = transform.position.x;
+        data.positionY = transform.position.y;
+        data.positionZ = transform.position.z;
+    }
+
+    public void LoadData(SaveData data)
+    {
+        // Load Abilities
+        canDoubleJumpUnlocked = data.unlockedFlags.Contains("DoubleJump");
+        canWallJumpUnlocked = data.unlockedFlags.Contains("WallJump");
+
+        // Load Position (Only if not 0,0,0 or check specifically)
+        transform.position = new Vector3(data.positionX, data.positionY, data.positionZ);
+    }
+
     void OnDrawGizmosSelected()
     {
         if (groundCheck != null) { Gizmos.color = Color.blue; Gizmos.DrawWireCube(groundCheck.position, groundCheckSize); }

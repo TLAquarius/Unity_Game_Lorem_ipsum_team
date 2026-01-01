@@ -169,6 +169,30 @@ public class WeaponController : MonoBehaviour
         }
     }
 
+    private WeaponData LoadWeaponByName(string name)
+    {
+        return Resources.Load<WeaponData>("Weapons/" + name);
+    }
+
+    public void SaveData(SaveData data)
+    {
+        data.weaponIDs.Clear(); // Reset list
+        if (mainWeapon != null) data.weaponIDs.Add(mainWeapon.name);
+        if (subWeapon != null) data.weaponIDs.Add(subWeapon.name);
+    }
+
+    public void LoadData(SaveData data)
+    {
+        if (data.weaponIDs.Count > 0)
+            mainWeapon = LoadWeaponByName(data.weaponIDs[0]);
+
+        if (data.weaponIDs.Count > 1)
+            subWeapon = LoadWeaponByName(data.weaponIDs[1]);
+
+        // Refresh visuals
+        if (mainWeapon != null) EquipWeapon(mainWeapon, true);
+    }
+
     void OnDrawGizmosSelected()
     {
         if (attackPoint == null) return;

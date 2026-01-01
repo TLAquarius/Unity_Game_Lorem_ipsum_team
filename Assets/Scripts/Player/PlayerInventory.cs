@@ -65,4 +65,16 @@ public class PlayerInventory : MonoBehaviour
             potionCountText.text = "x " + potionCount;
         }
     }
+
+    public void SaveData(SaveData data)
+    {
+        data.potionCount = this.potionCount;
+    }
+
+    // 3. Implement Load
+    public void LoadData(SaveData data)
+    {
+        this.potionCount = data.potionCount;
+        UpdateUI(); // Refresh UI immediately after loading
+    }
 }
