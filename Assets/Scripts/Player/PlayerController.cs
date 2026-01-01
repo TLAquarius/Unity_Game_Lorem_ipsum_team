@@ -40,10 +40,15 @@ public class PlayerController : MonoBehaviour
     public LayerMask groundLayer;
     public LayerMask wallLayer;
 
-    // --- NEW: ANIMATOR REFERENCE ---
+    // State Variables
+    private bool isKnockedBack = false;
+
+    // References
     private GameInput input;
     private Animator anim;
     private Rigidbody2D rb;
+    private SpriteRenderer sr; // Reference for flashing red
+
     private float horizontalInput;
     private bool isGrounded;
     private bool isTouchingWall;
@@ -58,6 +63,7 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
         input = GetComponent<GameInput>();
+        sr = GetComponentInChildren<SpriteRenderer>(); // Finds sprite even if on child object
 
         playerLayer = LayerMask.NameToLayer("Player");
         enemyLayer = LayerMask.NameToLayer("Enemy");
@@ -65,33 +71,49 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (isDashing) return;
+        // 1. BLOCK INPUT IF HURT OR DASHING
+        if (isDashing || isKnockedBack) return;
 
-        // 1. INPUT
+        // 2. INPUT
         if (!isWallJumping)
         {
-            Vector2 move = input.GetMovementInput();
-            horizontalInput = move.x;
+            // Use your Input System if available, otherwise fallback to legacy for safety
+            if (input != null)
+            {
+                Vector2 move = input.GetMovementInput();
+                horizontalInput = move.x;
+            }
+            else
+            {
+                horizontalInput = Input.GetAxisRaw("Horizontal");
+            }
         }
 
-        // 2. FLIP CHARACTER INSTANTLY (Moved from FixedUpdate)
-        // This moves the 'WallCheck' object immediately so we don't detect the wall behind us
+        // 3. FLIP CHARACTER
         if (!isWallJumping && horizontalInput != 0)
         {
             facingDirection = (horizontalInput > 0) ? 1 : -1;
             transform.localScale = new Vector3(facingDirection, 1, 1);
         }
 
-        // 3. UPDATE CHECKS INSTANTLY
-        // Perform these checks here so animation doesn't lag behind physics
+        // 4. PHYSICS CHECKS
         isGrounded = Physics2D.OverlapBox(groundCheck.position, groundCheckSize, 0f, groundLayer);
         isTouchingWall = Physics2D.OverlapBox(wallCheck.position, wallCheckSize, 0f, wallLayer);
 
-        // 4. JUMP LOGIC
-        if (input.IsJumpPressed())
+        // 5. JUMP LOGIC
+        // Check input existence to prevent crashes
+        bool jumpPressed = (input != null) ? input.IsJumpPressed() : Input.GetButtonDown("Jump");
+
+        if (jumpPressed)
         {
-            if (isTouchingWall && !isGrounded && canWallJumpUnlocked) StartCoroutine(WallJumpRoutine());
-            else if (isGrounded) Jump();
+            if (isTouchingWall && !isGrounded && canWallJumpUnlocked)
+            {
+                StartCoroutine(WallJumpRoutine());
+            }
+            else if (isGrounded)
+            {
+                Jump();
+            }
             else if (canDoubleJumpUnlocked && doubleJumpAvailable)
             {
                 Jump();
@@ -99,13 +121,13 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        if (input.IsDashPressed() && canDash)
+        // 6. DASH LOGIC
+        bool dashPressed = (input != null) ? input.IsDashPressed() : Input.GetKeyDown(KeyCode.LeftShift);
+        if (dashPressed && canDash)
             StartCoroutine(DashRoutine());
 
-        // 5. SLIDE LOGIC
+        // 7. SLIDE & ANIMATION
         CheckWallSlide();
-
-        // 6. ANIMATIONS
         UpdateAnimations();
     }
 
@@ -125,11 +147,13 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (isDashing) return;
+        // DISABLE PHYSICS MOVEMENT IF HURT/DASHING
+        if (isDashing || isKnockedBack) return;
 
-        // Note: isGrounded/isTouchingWall checks moved to Update for responsiveness
         // Reset Double Jump
-        if ((isGrounded || isWallSliding) && !input.IsJumpHeld())
+        bool jumpHeld = (input != null) ? input.IsJumpHeld() : Input.GetButton("Jump");
+
+        if ((isGrounded || isWallSliding) && !jumpHeld)
         {
             doubleJumpAvailable = true;
             isWallJumping = false;
@@ -141,15 +165,13 @@ public class PlayerController : MonoBehaviour
             rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
         }
 
-        // Removed Transform Flip from here to avoid the lag
-
-        ApplyBetterGravity();
+        ApplyBetterGravity(jumpHeld);
     }
 
-    void ApplyBetterGravity()
+    void ApplyBetterGravity(bool jumpHeld)
     {
         if (rb.linearVelocity.y < 0) rb.gravityScale = fallMultiplier;
-        else if (rb.linearVelocity.y > 0 && !input.IsJumpHeld() && !isWallJumping) rb.gravityScale = lowJumpMultiplier;
+        else if (rb.linearVelocity.y > 0 && !jumpHeld && !isWallJumping) rb.gravityScale = lowJumpMultiplier;
         else rb.gravityScale = 1f;
     }
 
@@ -164,10 +186,6 @@ public class PlayerController : MonoBehaviour
     {
         if (isTouchingWall && !isGrounded && rb.linearVelocity.y < 0)
         {
-            // Now that 'facingDirection' updates instantly in Update(),
-            // if you press AWAY from the wall, facingDirection flips, 
-            // wallCheck moves away, isTouchingWall becomes false instantly.
-            // But if we are still technically touching it, this logic ensures we must be pushing INTO it.
             if (horizontalInput == facingDirection)
             {
                 isWallSliding = true;
@@ -202,7 +220,6 @@ public class PlayerController : MonoBehaviour
         float jumpDirection = -facingDirection;
         rb.linearVelocity = new Vector2(jumpDirection * wallJumpPower.x, wallJumpPower.y);
 
-        // Force flip immediately for the jump visual
         transform.localScale = new Vector3(jumpDirection, 1, 1);
         facingDirection = (int)jumpDirection;
 
@@ -236,13 +253,12 @@ public class PlayerController : MonoBehaviour
         canDash = true;
     }
 
+    // --- DATA SAVING ---
     public void SaveData(SaveData data)
     {
-        // Save Abilities
         if (canDoubleJumpUnlocked) data.unlockedFlags.Add("DoubleJump");
         if (canWallJumpUnlocked) data.unlockedFlags.Add("WallJump");
 
-        // Save Position
         data.positionX = transform.position.x;
         data.positionY = transform.position.y;
         data.positionZ = transform.position.z;
@@ -250,12 +266,48 @@ public class PlayerController : MonoBehaviour
 
     public void LoadData(SaveData data)
     {
-        // Load Abilities
         canDoubleJumpUnlocked = data.unlockedFlags.Contains("DoubleJump");
         canWallJumpUnlocked = data.unlockedFlags.Contains("WallJump");
 
-        // Load Position (Only if not 0,0,0 or check specifically)
-        transform.position = new Vector3(data.positionX, data.positionY, data.positionZ);
+        // Safety check to ensure we don't load 0,0,0 if no data exists
+        if (data.positionX != 0 || data.positionY != 0)
+        {
+            transform.position = new Vector3(data.positionX, data.positionY, data.positionZ);
+        }
+    }
+
+    // --- UPDATED KNOCKBACK SYSTEM ---
+    // This now accepts a Vector2 so the Enemy calculates the direction and lift
+    public void ApplyKnockback(Vector2 forceVector)
+    {
+        if (isKnockedBack) return; // Prevent infinite stun lock
+        StartCoroutine(KnockbackRoutine(forceVector));
+    }
+
+    private IEnumerator KnockbackRoutine(Vector2 forceVector)
+    {
+        isKnockedBack = true;
+
+        // 1. Reset velocity so the knockback feels consistent
+        rb.linearVelocity = Vector2.zero;
+
+        // 2. Apply the exact force vector from the enemy
+        rb.AddForce(forceVector, ForceMode2D.Impulse);
+
+        // 3. Visual Feedback (Flash Red)
+        Color originalColor = Color.white;
+        if (sr != null)
+        {
+            originalColor = sr.color;
+            sr.color = Color.red;
+        }
+
+        // 4. Wait for Stun time (0.2s)
+        yield return new WaitForSeconds(0.2f);
+
+        // 5. Reset
+        if (sr != null) sr.color = originalColor;
+        isKnockedBack = false;
     }
 
     void OnDrawGizmosSelected()

@@ -3,199 +3,199 @@ using System.Collections;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(EnemyStats))]
-public class EnemyMeleeAI : MonoBehaviour
+public class EnemyMeleeAI : EnemyBase // INHERITS FROM ENEMYBASE
 {
-    // The States the enemy can be in
-    public enum State { Idle, Patrol, Chase, Telegraph, Attack, Cooldown, Hit }
+    public enum State { Idle, Patrol, Chase, Attack, Hit }
     public State currentState;
 
+    [Header("Class Settings")]
+    public bool isTank = false; // Check this for Golems/Knights
+
     [Header("References")]
-    public Transform attackPoint; // Create an empty child object where the attack hits
+    public Transform attackPoint;
+    public Transform groundCheck;
+    public LayerMask detectionLayer; // Set to "Player"
+
     private Transform player;
     private Rigidbody2D rb;
-    private EnemyStats stats;
-    private SpriteRenderer sr;
+    private Animator anim;
 
-    [Header("Movement Settings")]
-    public float moveSpeed = 2f;
-    public float chaseSpeed = 4f;
-    public float patrolWaitTime = 2f; // Time to stand still at patrol points
-    public Transform[] patrolPoints;  // Drag empty GameObjects here in Inspector
+    [Header("Movement")]
+    public float moveSpeed = 3f;
+    public float patrolWaitTime = 2f;
+    public Transform[] patrolPoints;
 
-    [Header("Detection Settings")]
+    [Header("Combat AI")]
     public float detectionRange = 6f;
-    public float attackRange = 1.2f;
+    public float attackTriggerRange = 1.5f;
+    public float attackRate = 1.5f;
+    public float attackWindUp = 0.4f; // Telegraph time
+    public float attackRange = 0.8f;  // Hitbox size
+    public float lungeForce = 5f;     // Forward jump during attack
 
-    [Header("Combat Settings")]
-    public float telegraphTime = 0.5f; // Warning time (Red Flash)
-    public float attackDuration = 0.2f; // Time the hitbox is active
-    public float attackRadius = 0.8f;   // Size of the attack circle
-    public float cooldownTime = 1.5f;   // Rest after attacking
-    public LayerMask playerLayer;       // Select "Player" layer in Inspector
-
-    // Internal Variables
-    private int currentPatrolIndex = 0;
-    private float nextMoveTime; // Timer for patrolling
+    private float nextAttackTime;
+    private int patrolIndex;
+    private bool isAttacking;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        stats = GetComponent<EnemyStats>();
-        sr = GetComponent<SpriteRenderer>();
+        anim = GetComponent<Animator>();
 
-        // Subscribe to the damage event to play "Hurt" animation
-        stats.OnTakeDamage += PlayHurtEffect;
-
-        // Auto-find Player
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null) player = p.transform;
 
         currentState = State.Patrol;
+        StartCoroutine(MainLogic());
     }
 
     void Update()
     {
-        if (player == null) return;
-
-        float distToPlayer = Vector2.Distance(transform.position, player.position);
-
-        // STATE MACHINE SWITCH
-        switch (currentState)
+        if (anim != null)
         {
-            case State.Patrol:
-                PatrolLogic(distToPlayer);
-                break;
-            case State.Chase:
-                ChaseLogic(distToPlayer);
-                break;
-                // Other states (Attack, Cooldown) are handled by Coroutines
+            anim.SetBool("isMoving", Mathf.Abs(rb.linearVelocity.x) > 0.1f);
+            anim.SetBool("isTank", isTank);
         }
     }
 
-    // --- LOGIC FUNCTIONS ---
-
-    void PatrolLogic(float distToPlayer)
+    IEnumerator MainLogic()
     {
-        // 1. Check for Player detection
-        if (distToPlayer < detectionRange)
+        while (true)
         {
-            currentState = State.Chase;
-            return;
-        }
+            if (player == null) yield break;
 
-        // 2. Patrol Movement
-        if (patrolPoints.Length == 0) return; // Safety check
-
-        Transform target = patrolPoints[currentPatrolIndex];
-
-        // If we reached the point, wait, then switch to next point
-        if (Vector2.Distance(transform.position, target.position) < 0.5f)
-        {
-            rb.linearVelocity = Vector2.zero;
-            if (Time.time > nextMoveTime)
+            switch (currentState)
             {
-                currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Length;
-                nextMoveTime = Time.time + patrolWaitTime;
+                case State.Patrol:
+                    yield return StartCoroutine(PatrolRoutine());
+                    break;
+                case State.Chase:
+                    yield return StartCoroutine(ChaseRoutine());
+                    break;
+                case State.Attack:
+                    yield return StartCoroutine(AttackRoutine());
+                    break;
             }
-        }
-        else
-        {
-            // Move to point
-            MoveTo(target.position, moveSpeed);
+            yield return null;
         }
     }
 
-    void ChaseLogic(float distToPlayer)
+    IEnumerator PatrolRoutine()
     {
-        // 1. If close enough, Attack
-        if (distToPlayer <= attackRange)
+        if (patrolPoints.Length == 0) { currentState = State.Idle; yield break; }
+        Transform target = patrolPoints[patrolIndex];
+
+        while (currentState == State.Patrol)
         {
-            StartCoroutine(AttackRoutine());
-        }
-        // 2. If too far, go back to Patrol
-        else if (distToPlayer > detectionRange * 1.5f)
-        {
-            currentState = State.Patrol;
-        }
-        // 3. Otherwise, Run at player
-        else
-        {
-            MoveTo(player.position, chaseSpeed);
+            if (Vector2.Distance(transform.position, player.position) < detectionRange)
+            {
+                currentState = State.Chase;
+                yield break;
+            }
+
+            MoveTowards(target.position, moveSpeed * 0.5f);
+
+            if (Vector2.Distance(transform.position, target.position) < 0.5f)
+            {
+                rb.linearVelocity = Vector2.zero;
+                yield return new WaitForSeconds(patrolWaitTime);
+                patrolIndex = (patrolIndex + 1) % patrolPoints.Length;
+                target = patrolPoints[patrolIndex];
+            }
+            yield return null;
         }
     }
 
-    // --- COMBAT COROUTINE (The core Logic) ---
+    IEnumerator ChaseRoutine()
+    {
+        while (currentState == State.Chase)
+        {
+            float dist = Vector2.Distance(transform.position, player.position);
+
+            if (dist < attackTriggerRange && Time.time >= nextAttackTime)
+            {
+                currentState = State.Attack;
+                yield break;
+            }
+
+            if (dist > detectionRange * 1.5f)
+            {
+                currentState = State.Patrol;
+                yield break;
+            }
+
+            if (CheckGroundAhead()) MoveTowards(player.position, moveSpeed);
+            else rb.linearVelocity = Vector2.zero;
+
+            yield return null;
+        }
+    }
+
     IEnumerator AttackRoutine()
     {
-        currentState = State.Telegraph;
-        rb.linearVelocity = Vector2.zero; // Stop moving
+        isAttacking = true;
+        rb.linearVelocity = Vector2.zero;
+        FaceTarget(player.position);
 
-        // 1. TELEGRAPH (Warning)
-        sr.color = Color.red; // Visual warning (Change this to Animation later)
-        yield return new WaitForSeconds(telegraphTime);
+        if (anim) anim.SetTrigger("Attack");
 
-        // 2. ATTACK (Active Hitbox)
-        currentState = State.Attack;
-        sr.color = Color.white;
+        yield return new WaitForSeconds(attackWindUp); // Telegraph
 
-        // Check what we hit using a Physics Circle
-        Collider2D[] hitPlayers = Physics2D.OverlapCircleAll(attackPoint.position, attackRadius, playerLayer);
-        foreach (Collider2D p in hitPlayers)
+        if (!isTank) // Lunge forward
         {
-            // Try to find a script on the player that can take damage
-            // For now, we assume the player has a script with a 'TakeDamage' method
-            p.SendMessage("TakeDamage", stats.damage, SendMessageOptions.DontRequireReceiver);
-            Debug.Log("Hit Player for " + stats.damage + " damage!");
+            float dir = Mathf.Sign(transform.localScale.x);
+            rb.AddForce(new Vector2(dir * lungeForce, 0), ForceMode2D.Impulse);
         }
 
-        yield return new WaitForSeconds(attackDuration);
+        // HITBOX CHECK
+        Collider2D[] hitPlayers = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, detectionLayer);
+        foreach (Collider2D p in hitPlayers)
+        {
+            if (p.CompareTag("Player"))
+            {
+                // Push player based on facing direction
+                float facingDir = Mathf.Sign(transform.localScale.x);
+                ApplyCustomKnockback(p.gameObject, attackDamage, facingDir);
+            }
+        }
 
-        // 3. COOLDOWN
-        currentState = State.Cooldown;
-        yield return new WaitForSeconds(cooldownTime);
+        yield return new WaitForSeconds(isTank ? 1.0f : 0.5f); // Recovery
 
-        // 4. RESET
+        nextAttackTime = Time.time + attackRate;
+        isAttacking = false;
         currentState = State.Chase;
     }
 
-    // --- HELPER FUNCTIONS ---
+    // HELPER FUNCTIONS
+    void MoveTowards(Vector2 target, float speed)
+    {
+        if (isAttacking) return;
+        float direction = Mathf.Sign(target.x - transform.position.x);
+        transform.localScale = new Vector3(direction, 1, 1);
+        rb.linearVelocity = new Vector2(direction * speed, rb.linearVelocity.y);
+    }
 
-    void MoveTo(Vector2 target, float speed)
+    void FaceTarget(Vector2 target)
     {
         float direction = Mathf.Sign(target.x - transform.position.x);
-        rb.linearVelocity = new Vector2(direction * speed, rb.linearVelocity.y);
-        transform.localScale = new Vector3(direction, 1, 1); // Face direction
+        transform.localScale = new Vector3(direction, 1, 1);
     }
 
-    void PlayHurtEffect()
+    bool CheckGroundAhead()
     {
-        // Simple feedback when hit
-        StartCoroutine(FlashWhite());
+        if (groundCheck == null) return true;
+        RaycastHit2D hit = Physics2D.Raycast(groundCheck.position, Vector2.down, 1f, LayerMask.GetMask("Ground"));
+        return hit.collider != null;
     }
 
-    IEnumerator FlashWhite()
-    {
-        sr.color = Color.clear; // Flash transparent
-        yield return new WaitForSeconds(0.1f);
-        sr.color = Color.white;
-    }
-
-    // --- VISUAL DEBUGGING (Gizmos) ---
     void OnDrawGizmosSelected()
     {
-        // Draw Detection Range
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
-
-        // Draw Attack Trigger Range
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
-
-        // Draw Actual Hitbox
         if (attackPoint != null)
         {
-            Gizmos.color = Color.blue;
-            Gizmos.DrawWireSphere(attackPoint.position, attackRadius);
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(attackPoint.position, attackRange);
         }
     }
 }

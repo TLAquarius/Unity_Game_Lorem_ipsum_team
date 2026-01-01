@@ -2,21 +2,21 @@ using UnityEngine;
 
 public class EnemyStats : MonoBehaviour
 {
-    // --- ATTRIBUTES GO HERE (ABOVE the variables) ---
     [Header("Base Stats")]
     public float maxHP = 100f;
     public float currentHP;
-    public float damage = 10f;
     public float xpReward = 20f;
 
-    [Header("Combat Feedback")]
-    public float knockbackResistance = 0f;
+    [Header("Loot Settings")]
+    public LootTable lootTable; // Drag your LootTable asset here
 
-    // Delegate and Event for taking damage
+    [Header("Combat Feedback")]
+    public float knockbackResistance = 0f; // 0 = full knockback, 1 = immune
+
+    // Events
     public delegate void DamageEvent();
     public event DamageEvent OnTakeDamage;
 
-    // --- FUNCTIONS START HERE ---
     void Start()
     {
         currentHP = maxHP;
@@ -25,9 +25,7 @@ public class EnemyStats : MonoBehaviour
     public void TakeDamage(float amount)
     {
         currentHP -= amount;
-        Debug.Log(transform.name + " took " + amount + " damage.");
 
-        // Notify other scripts (like the AI)
         if (OnTakeDamage != null)
         {
             OnTakeDamage.Invoke();
@@ -41,22 +39,28 @@ public class EnemyStats : MonoBehaviour
 
     void Die()
     {
-        // 1. Find the Player
-        // (In a real game, you might want to cache this or use a Singleton, 
-        // but FindWithTag is fine for this assignment level)
+        // 1. Give XP to Player
         GameObject player = GameObject.FindGameObjectWithTag("Player");
-
         if (player != null)
         {
             PlayerStats playerStats = player.GetComponent<PlayerStats>();
             if (playerStats != null)
             {
-                // 2. Give XP
                 playerStats.AddXP(xpReward);
             }
         }
 
-        Debug.Log("Enemy Died! Dropping " + xpReward + " XP.");
+        // 2. Drop Loot
+        if (lootTable != null)
+        {
+            GameObject drop = lootTable.GetDrop();
+            if (drop != null)
+            {
+                Instantiate(drop, transform.position, Quaternion.identity);
+            }
+        }
+
+        // 3. Destroy
         Destroy(gameObject);
     }
 }
