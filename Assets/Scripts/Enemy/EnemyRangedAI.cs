@@ -3,20 +3,23 @@ using System.Collections;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(EnemyStats))]
-public class EnemyRangedAI : EnemyBase
+public class EnemyRangedAI : EnemyBase // INHERITS FROM ENEMYBASE
 {
     public enum State { Idle, Patrol, Chase, Attack, Hit }
     public State currentState;
 
+    [Header("Sprite Settings")]
+    public bool spriteFacesLeft = true; // CHECK THIS if your art faces Left
+
     [Header("References")]
     public GameObject bulletPrefab;
-    public Transform firePoint;
-    public Transform groundCheck;
-    public LayerMask playerLayer;
+    public Transform firePoint;     // Where the arrow spawns
+    public Transform groundCheck;   // At the feet
 
     private Transform player;
     private Rigidbody2D rb;
     private Animator anim;
+    private EnemyStats stats;
 
     [Header("Movement")]
     public float moveSpeed = 3f;
@@ -24,26 +27,32 @@ public class EnemyRangedAI : EnemyBase
     public Transform[] patrolPoints;
 
     [Header("Combat Ranges")]
-    public float detectionRange = 10f;
-    public float shootingRange = 6f;
-    public float retreatRange = 3f;
+    public float detectionRange = 10f; // Far vision
+    public float shootingRange = 6f;   // Distance to start shooting
+    public float retreatRange = 3f;    // Run away if player gets this close
 
     [Header("Attack Settings")]
     public float fireRate = 2f;
-    public float attackWindUp = 0.3f;
+    public float attackWindUp = 0.5f; // Time before arrow spawns
+
+    [Header("Hurt Settings")]
+    public float hurtDuration = 0.5f;
+    public Vector2 selfKnockback = new Vector2(3f, 2f);
 
     private float nextFireTime;
     private int patrolIndex;
     private bool isProvoked = false;
-    // REMOVED: private bool isAttacking; << This caused the warning
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
+        stats = GetComponent<EnemyStats>();
 
-        EnemyStats myStats = GetComponent<EnemyStats>();
-        if (myStats != null) myStats.OnTakeDamage += ReactToDamage; // Subscribe
+        rb.gravityScale = 1f; // Ensure gravity works
+
+        // Subscribe to damage event
+        if (stats != null) stats.OnTakeDamage += ReactToDamage;
 
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null) player = p.transform;
@@ -56,27 +65,51 @@ public class EnemyRangedAI : EnemyBase
     {
         if (anim != null)
         {
+            // We are moving if velocity X is significant
             anim.SetBool("isMoving", Mathf.Abs(rb.linearVelocity.x) > 0.1f);
         }
     }
 
+    // --- SMART REACTION & HURT LOGIC ---
     void ReactToDamage()
     {
-        if (currentState != State.Attack && currentState != State.Chase)
+        if (stats.currentHP <= 0) return;
+
+        StopAllCoroutines();
+        StartCoroutine(HurtRoutine());
+    }
+
+    IEnumerator HurtRoutine()
+    {
+        currentState = State.Hit;
+
+        // 1. Visual & Physics
+        if (anim) anim.SetTrigger("Hurt");
+
+        rb.linearVelocity = Vector2.zero; // Stop current move
+        if (player != null)
         {
-            currentState = State.Chase;
-            StopCoroutine("ResetProvocation");
-            StartCoroutine(ResetProvocation());
+            float dirX = Mathf.Sign(transform.position.x - player.position.x);
+            rb.AddForce(new Vector2(dirX * selfKnockback.x, selfKnockback.y), ForceMode2D.Impulse);
         }
+
+        // 2. Stun Time
+        yield return new WaitForSeconds(hurtDuration);
+
+        // 3. Recover
+        currentState = State.Chase;
+        isProvoked = true;
+        StartCoroutine(ResetProvocation());
+        StartCoroutine(MainLogic());
     }
 
     IEnumerator ResetProvocation()
     {
-        isProvoked = true;
-        yield return new WaitForSeconds(4.0f); // Ranged enemies stay alert longer
+        yield return new WaitForSeconds(4.0f);
         isProvoked = false;
     }
 
+    // --- MAIN AI LOOP ---
     IEnumerator MainLogic()
     {
         while (true)
@@ -103,13 +136,12 @@ public class EnemyRangedAI : EnemyBase
     {
         if (patrolPoints.Length == 0)
         {
+            // Guard Mode: Just look for player
             while (currentState == State.Patrol)
             {
                 if (Vector2.Distance(transform.position, player.position) < detectionRange)
-                {
                     currentState = State.Chase;
-                }
-                yield return new WaitForSeconds(0.2f);
+                yield return null;
             }
             yield break;
         }
@@ -128,7 +160,7 @@ public class EnemyRangedAI : EnemyBase
 
             if (Vector2.Distance(transform.position, target.position) < 0.5f)
             {
-                rb.linearVelocity = Vector2.zero;
+                rb.linearVelocity = new Vector2(0, rb.linearVelocity.y); // Stop X, keep Gravity
                 yield return new WaitForSeconds(patrolWaitTime);
                 patrolIndex = (patrolIndex + 1) % patrolPoints.Length;
                 target = patrolPoints[patrolIndex];
@@ -143,38 +175,36 @@ public class EnemyRangedAI : EnemyBase
         {
             float dist = Vector2.Distance(transform.position, player.position);
 
+            // 1. Give up if too far AND not provoked
             if (!isProvoked && dist > detectionRange * 1.5f)
             {
                 currentState = State.Patrol;
                 yield break;
             }
 
+            // 2. KITING LOGIC (Run away or Approach)
             if (dist < retreatRange)
             {
-                if (CheckGroundBackwards())
-                {
-                    MoveAway(player.position, moveSpeed);
-                }
+                // TOO CLOSE! Run away if safe
+                if (CheckGroundBackwards()) MoveAway(player.position, moveSpeed);
                 else
                 {
+                    // Cornered! Switch to attack immediately
+                    rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
                     currentState = State.Attack;
                     yield break;
                 }
             }
             else if (dist > shootingRange)
             {
-                if (CheckGroundAhead())
-                {
-                    MoveTowards(player.position, moveSpeed);
-                }
-                else
-                {
-                    rb.linearVelocity = Vector2.zero;
-                }
+                // TOO FAR! Chase
+                if (CheckGroundAhead()) MoveTowards(player.position, moveSpeed);
+                else rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
             }
             else
             {
-                rb.linearVelocity = Vector2.zero;
+                // PERFECT RANGE! Stop and Attack
+                rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
                 if (Time.time >= nextFireTime)
                 {
                     currentState = State.Attack;
@@ -188,78 +218,86 @@ public class EnemyRangedAI : EnemyBase
 
     IEnumerator AttackRoutine()
     {
-        // Removed isAttacking = true; 
-        rb.linearVelocity = Vector2.zero;
+        rb.linearVelocity = new Vector2(0, rb.linearVelocity.y); // Brake
         FaceTarget(player.position);
 
         if (anim) anim.SetTrigger("Attack");
 
         yield return new WaitForSeconds(attackWindUp);
 
-        Shoot();
+        Shoot(); // Spawn Arrow
 
         float cooldown = 1f / fireRate;
         nextFireTime = Time.time + cooldown;
 
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds(0.5f); // Recover
 
-        // Removed isAttacking = false;
         currentState = State.Chase;
     }
+
+    // --- HELPER FUNCTIONS ---
 
     void Shoot()
     {
         if (bulletPrefab == null || firePoint == null) return;
 
+        // Instantiate bullet
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
+
+        // Point bullet at player
         Vector2 dir = (player.position - firePoint.position).normalized;
-
-        Rigidbody2D bulletRb = bullet.GetComponent<Rigidbody2D>();
-        if (bulletRb != null)
-        {
-            bulletRb.linearVelocity = dir * 10f;
-        }
-
         float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-        bullet.transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+        bullet.transform.rotation = Quaternion.Euler(0, 0, angle);
+
+        // NOTE: Bullet movement is handled by the Bullet Script itself (in Start)
     }
 
     void MoveTowards(Vector2 target, float speed)
     {
-        float direction = Mathf.Sign(target.x - transform.position.x);
-        transform.localScale = new Vector3(direction, 1, 1);
-        rb.linearVelocity = new Vector2(direction * speed, rb.linearVelocity.y);
+        float directionX = Mathf.Sign(target.x - transform.position.x);
+
+        // FLIP LOGIC (Standardized)
+        float scaleX = spriteFacesLeft ? -directionX : directionX;
+        transform.localScale = new Vector3(scaleX, 1, 1);
+
+        rb.linearVelocity = new Vector2(directionX * speed, rb.linearVelocity.y);
     }
 
     void MoveAway(Vector2 target, float speed)
     {
-        float direction = Mathf.Sign(transform.position.x - target.x);
-        FaceTarget(player.position);
-        rb.linearVelocity = new Vector2(direction * speed, rb.linearVelocity.y);
+        float directionX = Mathf.Sign(transform.position.x - target.x); // Run opposite
+
+        // Face Player while running backwards (Kiting)
+        FaceTarget(target);
+
+        rb.linearVelocity = new Vector2(directionX * speed, rb.linearVelocity.y);
     }
 
     void FaceTarget(Vector2 target)
     {
-        float direction = Mathf.Sign(target.x - transform.position.x);
-        transform.localScale = new Vector3(direction, 1, 1);
+        float directionX = Mathf.Sign(target.x - transform.position.x);
+        float scaleX = spriteFacesLeft ? -directionX : directionX;
+        transform.localScale = new Vector3(scaleX, 1, 1);
     }
 
     bool CheckGroundAhead()
     {
         if (groundCheck == null) return true;
-        float facing = transform.localScale.x;
+        // Check slightly in front of facing direction
+        float facing = Mathf.Sign(transform.localScale.x * (spriteFacesLeft ? -1 : 1));
         Vector2 checkPos = (Vector2)groundCheck.position + new Vector2(facing * 0.5f, 0);
-        RaycastHit2D hit = Physics2D.Raycast(checkPos, Vector2.down, 1f, LayerMask.GetMask("Ground"));
-        return hit.collider != null;
+
+        return Physics2D.Raycast(checkPos, Vector2.down, 1.5f, LayerMask.GetMask("Ground"));
     }
 
     bool CheckGroundBackwards()
     {
         if (groundCheck == null) return true;
-        float facing = transform.localScale.x;
+        // Check slightly BEHIND facing direction
+        float facing = Mathf.Sign(transform.localScale.x * (spriteFacesLeft ? -1 : 1));
         Vector2 checkPos = (Vector2)groundCheck.position - new Vector2(facing * 0.5f, 0);
-        RaycastHit2D hit = Physics2D.Raycast(checkPos, Vector2.down, 1f, LayerMask.GetMask("Ground"));
-        return hit.collider != null;
+
+        return Physics2D.Raycast(checkPos, Vector2.down, 1.5f, LayerMask.GetMask("Ground"));
     }
 
     void OnDrawGizmosSelected()
