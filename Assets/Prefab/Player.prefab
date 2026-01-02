@@ -80,6 +80,8 @@ GameObject:
   - component: {fileID: -938629958095289058}
   - component: {fileID: 8790374204538252808}
   - component: {fileID: 4578560426893601088}
+  - component: {fileID: 4957493457794512442}
+  - component: {fileID: -4677740691375310053}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -304,7 +306,6 @@ MonoBehaviour:
   potionCount: 0
   maxPotions: 3
   healAmount: 30
-  healKey: 104
   potionCountText: {fileID: 0}
 --- !u!114 &-938629958095289058
 MonoBehaviour:
@@ -343,7 +344,6 @@ MonoBehaviour:
   interactLayer:
     serializedVersion: 2
     m_Bits: 512
-  interactKey: 102
 --- !u!95 &4578560426893601088
 Animator:
   serializedVersion: 7
@@ -366,6 +366,37 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &4957493457794512442
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2758324891994070553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47553b7fbaf0ce4409665de7ff00bd98, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &-4677740691375310053
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2758324891994070553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f7443ef26aa0c9498a71e9cf7efd993, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  safeGroundLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  hazardLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  checkInterval: 0.5
 --- !u!1 &4728125107518611870
 GameObject:
   m_ObjectHideFlags: 0

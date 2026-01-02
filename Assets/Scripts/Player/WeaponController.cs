@@ -17,9 +17,10 @@ public class WeaponController : MonoBehaviour
     private float inputBufferTime = 0.2f;
     private bool bufferedMainAttack = false;
 
-    // --- NEW: SHOOTING LOCK ---
-    // Prevents spamming from cancelling the shot before it spawns
+    // --- SHOOTING LOCK & PHYSICS ---
     private bool isShooting = false;
+    private Rigidbody2D rb;
+    private float defaultGravity;
 
     [Header("References")]
     public Transform attackPoint;
@@ -28,10 +29,18 @@ public class WeaponController : MonoBehaviour
     public float currentAttackRadius = 0.5f;
 
     private Animator anim;
+    private GameInput input;
+    private PlayerController playerController; // <--- NEW REF
 
     void Start()
     {
         anim = GetComponent<Animator>();
+        input = GetComponent<GameInput>();
+        playerController = GetComponent<PlayerController>(); // <--- GET REF
+
+        rb = GetComponent<Rigidbody2D>();
+        if (rb != null) defaultGravity = rb.gravityScale;
+
         if (mainWeapon != null)
         {
             UpdateVisuals(mainWeapon);
@@ -42,19 +51,19 @@ public class WeaponController : MonoBehaviour
     void Update()
     {
         // 1. SAFETY RESET
-        // If we get stuck in "Shooting" state for too long (e.g. got hit/interrupted), reset it
+        // If stuck in shooting state for > 1 second, force reset
         if (isShooting && Time.time - lastAttackTime > 1.0f)
         {
-            isShooting = false;
+            ResetShootingState();
         }
 
         // 2. BUFFER INPUT
-        if (Input.GetKeyDown(KeyCode.Z))
+        if (input.IsAttackMainPressed())
         {
             lastInputTime = Time.time;
             bufferedMainAttack = true;
         }
-        else if (Input.GetKeyDown(KeyCode.X))
+        else if (input.IsAttackSubPressed())
         {
             lastInputTime = Time.time;
             bufferedMainAttack = false;
@@ -69,9 +78,7 @@ public class WeaponController : MonoBehaviour
         // 4. EXECUTE ATTACK
         if (Time.time - lastInputTime < inputBufferTime)
         {
-            // --- NEW CHECK: IS SHOOTING? ---
-            // If we are currently winding up a shot, DO NOT allow a new attack yet.
-            if (isShooting) return;
+            if (isShooting) return; // Cannot interrupt shooting loop
             if (mainWeapon != null || subWeapon != null)
             {
                 float timeBetweenAttacks = 1f / (bufferedMainAttack ? mainWeapon.attackRate : subWeapon.attackRate);
@@ -84,6 +91,18 @@ public class WeaponController : MonoBehaviour
                     lastInputTime = -999f;
                 }
             }
+        }
+    }
+
+    // --- HELPER TO RESET STATE ---
+    void ResetShootingState()
+    {
+        isShooting = false;
+        if (playerController != null) playerController.SetShooting(false); // Unfreeze Player
+
+        if (rb != null)
+        {
+            rb.gravityScale = defaultGravity;
         }
     }
 
@@ -110,17 +129,23 @@ public class WeaponController : MonoBehaviour
         {
             if (weapon.isRanged)
             {
-                // --- LOCK INPUT ---
+                // --- LOCK INPUT & SUSPEND GRAVITY ---
                 isShooting = true;
 
-                // Use 'Play' to force start, but because 'isShooting' is true, 
-                // Update() won't call this again until the bullet spawns.
-                anim.Play("Block", -1, 0f);
+                // Tell PlayerController to stop processing inputs
+                if (playerController != null) playerController.SetShooting(true);
+
+                if (rb != null)
+                {
+                    rb.linearVelocity = Vector2.zero; // Stop instantly
+                    rb.gravityScale = 0f;       // Float in air
+                }
+
+                anim.Play("Block", -1, 0f); // Replace "Block" with your Bow animation name
                 comboStep = 0;
             }
             else
             {
-                // Melee logic remains the same (spam friendly)
                 comboStep++;
                 if (comboStep > 3) comboStep = 1;
                 anim.Play("Attack" + comboStep, -1, 0f);
@@ -131,8 +156,9 @@ public class WeaponController : MonoBehaviour
     // TRIGGERED BY ANIMATION EVENT
     public void AnimationEvent_DealDamage()
     {
-        Debug.Log("Event Fired!");
-        isShooting = false;
+        // --- RESTORE GRAVITY ---
+        // As soon as the bullet fires, gravity returns and player falls
+        ResetShootingState();
 
         if (activeWeapon == null) return;
 
@@ -147,7 +173,7 @@ public class WeaponController : MonoBehaviour
                     b.speed = activeWeapon.projectileSpeed;
                     b.damage = activeWeapon.damage;
                 }
-                // Flip bullet logic
+                // Handle shooting left
                 if (transform.localScale.x < 0)
                 {
                     b.transform.localScale = new Vector3(-1, 1, 1);
@@ -166,6 +192,20 @@ public class WeaponController : MonoBehaviour
         }
     }
 
+    // ... Load/Save Logic (Same as before) ...
+    private WeaponData LoadWeaponByName(string name) { return Resources.Load<WeaponData>("Weapons/" + name); }
+    public void SaveData(SaveData data)
+    {
+        data.weaponIDs.Clear();
+        if (mainWeapon != null) data.weaponIDs.Add(mainWeapon.name);
+        if (subWeapon != null) data.weaponIDs.Add(subWeapon.name);
+    }
+    public void LoadData(SaveData data)
+    {
+        if (data.weaponIDs.Count > 0) mainWeapon = LoadWeaponByName(data.weaponIDs[0]);
+        if (data.weaponIDs.Count > 1) subWeapon = LoadWeaponByName(data.weaponIDs[1]);
+        if (mainWeapon != null) EquipWeapon(mainWeapon, true);
+    }
     void OnDrawGizmosSelected()
     {
         if (attackPoint == null) return;
