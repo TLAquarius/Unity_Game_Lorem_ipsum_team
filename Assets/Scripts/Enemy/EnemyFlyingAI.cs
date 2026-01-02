@@ -3,22 +3,27 @@ using System.Collections;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(EnemyStats))]
-public class EnemyFlyingAI : EnemyBase
+public class EnemyFlyingAI : EnemyBase // INHERITS FROM ENEMYBASE
 {
-    public enum State { Idle, Patrol, Chase, Attack }
+    public enum State { Idle, Patrol, Chase, Attack, Hit }
     public State currentState;
 
+    [Header("Sprite Settings")]
+    public bool spriteFacesLeft = true; // Check this if your sprite faces LEFT by default
+
     [Header("References")]
-    public GameObject projectilePrefab;
-    public Transform firePoint;
+    public GameObject projectilePrefab; // Optional: Assign if it shoots
+    public Transform firePoint;         // Optional: Where bullet comes out
+
     private Transform player;
     private Rigidbody2D rb;
     private Animator anim;
+    private EnemyStats stats;
 
     [Header("Movement Stats")]
     public float moveSpeed = 3f;
     public float chaseSpeed = 4.5f;
-    public float acceleration = 5f; // Soft movement smoothing
+    public float acceleration = 10f; // How fast it turns
 
     [Header("Patrol Settings")]
     public float patrolWaitTime = 1f;
@@ -26,13 +31,18 @@ public class EnemyFlyingAI : EnemyBase
 
     [Header("Combat AI")]
     public float detectionRange = 9f;
-    public float attackRange = 5f;
-    public float keepDistance = 3f; // Don't get closer than this (hovering)
-    public float heightOffset = 2f; // Try to fly this high above player
+    public float attackRange = 5f;  // Distance to start attacking/shooting
+    public float keepDistance = 3f; // If shooting, stay this far away
+    public float heightOffset = 2f; // Fly above player's head
 
     [Header("Attack Settings")]
     public float fireRate = 2f;
     public float attackWindUp = 0.5f;
+
+    [Header("Hurt Settings")]
+    public float hurtDuration = 0.5f;
+    public Vector2 selfKnockback = new Vector2(3f, 3f);
+
     private float nextFireTime;
     private int patrolIndex;
     private bool isProvoked = false;
@@ -41,10 +51,12 @@ public class EnemyFlyingAI : EnemyBase
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
+        stats = GetComponent<EnemyStats>();
+
+        // IMPORTANT: Flying enemies must not have gravity!
         rb.gravityScale = 0f;
 
-        EnemyStats myStats = GetComponent<EnemyStats>();
-        if (myStats != null) myStats.OnTakeDamage += ReactToDamage; // Subscribe
+        if (stats != null) stats.OnTakeDamage += ReactToDamage;
 
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null) player = p.transform;
@@ -55,39 +67,63 @@ public class EnemyFlyingAI : EnemyBase
 
     void Update()
     {
-        // Visual Rotation logic
-        if (player != null && currentState == State.Chase || currentState == State.Attack)
+        // Visual Rotation logic (Face Player or Movement)
+        if (anim != null)
         {
-            // Face Player
-            float dir = Mathf.Sign(player.position.x - transform.position.x);
-            transform.localScale = new Vector3(dir, 1, 1);
+            // Just check if we are moving significantly
+            anim.SetBool("isMoving", rb.linearVelocity.magnitude > 0.1f);
+        }
+
+        // Handle Facing Direction
+        if (currentState == State.Chase || currentState == State.Attack)
+        {
+            if (player != null) FaceTarget(player.position);
         }
         else if (rb.linearVelocity.x != 0)
         {
-            // Face Movement Direction
-            float dir = Mathf.Sign(rb.linearVelocity.x);
-            transform.localScale = new Vector3(dir, 1, 1);
+            FaceTarget(transform.position + (Vector3)rb.linearVelocity);
         }
     }
 
+    // --- SMART REACTION ---
     void ReactToDamage()
     {
-        // Wake up the bat!
-        if (currentState != State.Chase && currentState != State.Attack)
+        if (stats.currentHP <= 0) return;
+        StopAllCoroutines();
+        StartCoroutine(HurtRoutine());
+    }
+
+    IEnumerator HurtRoutine()
+    {
+        currentState = State.Hit;
+        if (anim) anim.SetTrigger("Hurt");
+
+        // 1. Apply Knockback (In the air)
+        rb.linearVelocity = Vector2.zero;
+        if (player != null)
         {
-            currentState = State.Chase;
-            StopCoroutine("ResetProvocation");
-            StartCoroutine(ResetProvocation());
+            float dirX = Mathf.Sign(transform.position.x - player.position.x);
+            // Push up and away
+            rb.AddForce(new Vector2(dirX * selfKnockback.x, selfKnockback.y), ForceMode2D.Impulse);
         }
+
+        // 2. Wait
+        yield return new WaitForSeconds(hurtDuration);
+
+        // 3. Recover & Chase
+        currentState = State.Chase;
+        isProvoked = true;
+        StartCoroutine(ResetProvocation());
+        StartCoroutine(MainLogic());
     }
 
     IEnumerator ResetProvocation()
     {
-        isProvoked = true;
-        yield return new WaitForSeconds(5.0f); // Flying enemies chase for a long time
+        yield return new WaitForSeconds(5.0f); // Chase for 5 seconds
         isProvoked = false;
     }
 
+    // --- MAIN LOOP ---
     IEnumerator MainLogic()
     {
         while (true)
@@ -114,13 +150,13 @@ public class EnemyFlyingAI : EnemyBase
     {
         if (patrolPoints.Length == 0)
         {
-            // Just hover in place if no points
+            // Idle Hover if no points
             while (currentState == State.Patrol)
             {
+                rb.linearVelocity = Vector2.Lerp(rb.linearVelocity, Vector2.zero, Time.deltaTime);
                 if (Vector2.Distance(transform.position, player.position) < detectionRange)
                     currentState = State.Chase;
-
-                yield return new WaitForSeconds(0.2f);
+                yield return null;
             }
             yield break;
         }
@@ -129,17 +165,14 @@ public class EnemyFlyingAI : EnemyBase
 
         while (currentState == State.Patrol)
         {
-            // 1. Check for Player
             if (Vector2.Distance(transform.position, player.position) < detectionRange)
             {
                 currentState = State.Chase;
                 yield break;
             }
 
-            // 2. Move to Point
             MoveToPosition(target.position, moveSpeed);
 
-            // 3. Check if reached
             if (Vector2.Distance(transform.position, target.position) < 0.5f)
             {
                 rb.linearVelocity = Vector2.zero;
@@ -157,26 +190,34 @@ public class EnemyFlyingAI : EnemyBase
         {
             float dist = Vector2.Distance(transform.position, player.position);
 
-            // 1. Lost Player
+            // 1. Give up
             if (!isProvoked && dist > detectionRange * 1.5f)
             {
                 currentState = State.Patrol;
                 yield break;
             }
 
-            // 2. Combat Logic
+            // 2. Attack Range
             if (dist < attackRange && Time.time >= nextFireTime)
             {
                 currentState = State.Attack;
                 yield break;
             }
 
-            // 3. Movement Logic (Hover above player)
-            // Target position is Player X, but Player Y + Height Offset
-            Vector2 targetPos = new Vector2(player.position.x, player.position.y + heightOffset);
+            // 3. Movement (Hover above player)
+            // If we have a projectile, hover ABOVE. If melee (Bat), fly INTO player.
+            Vector2 targetPos;
 
-            // If we are too close horizontally, back off slightly?
-            // Actually, for flying, just smoothing towards that top point is usually enough.
+            if (projectilePrefab != null)
+            {
+                // Ranged Flyer: Hover above head
+                targetPos = new Vector2(player.position.x, player.position.y + heightOffset);
+            }
+            else
+            {
+                // Melee Flyer (Bat): Fly directly at body
+                targetPos = player.position;
+            }
 
             MoveToPosition(targetPos, chaseSpeed);
 
@@ -186,37 +227,54 @@ public class EnemyFlyingAI : EnemyBase
 
     IEnumerator AttackRoutine()
     {
-        // Slow down while attacking
+        // Brake slightly
         rb.linearVelocity = rb.linearVelocity * 0.5f;
 
         if (anim) anim.SetTrigger("Attack");
 
         yield return new WaitForSeconds(attackWindUp);
 
-        Shoot();
+        // If we have a bullet, shoot. If not, this is just a melee lunge animation.
+        if (projectilePrefab != null)
+        {
+            Shoot();
+        }
+        else
+        {
+            // Bat Lunge: Dash at player
+            Vector2 dir = (player.position - transform.position).normalized;
+            rb.AddForce(dir * 10f, ForceMode2D.Impulse);
+        }
 
         float cooldown = 1f / fireRate;
         nextFireTime = Time.time + cooldown;
 
-        yield return new WaitForSeconds(0.5f); // Short pause after shooting
+        yield return new WaitForSeconds(0.5f);
 
         currentState = State.Chase;
     }
 
-    // --- PHYSICS MOVEMENT ---
+    // --- PHYSICS HELPERS ---
     void MoveToPosition(Vector2 target, float speed)
     {
-        // Smooth force movement for flying enemies feels better than direct velocity set
+        // Smooth physics movement
         Vector2 dir = (target - (Vector2)transform.position).normalized;
-        Vector2 force = dir * speed * acceleration;
 
-        rb.AddForce(force);
+        // Accelerate towards target
+        rb.AddForce(dir * speed * acceleration);
 
-        // Cap speed
+        // Clamp speed so they don't go supersonic
         if (rb.linearVelocity.magnitude > speed)
         {
             rb.linearVelocity = rb.linearVelocity.normalized * speed;
         }
+    }
+
+    void FaceTarget(Vector3 target)
+    {
+        float directionX = Mathf.Sign(target.x - transform.position.x);
+        float scaleX = spriteFacesLeft ? -directionX : directionX;
+        transform.localScale = new Vector3(scaleX, 1, 1);
     }
 
     void Shoot()
@@ -226,14 +284,9 @@ public class EnemyFlyingAI : EnemyBase
         GameObject bullet = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
         Vector2 dir = (player.position - firePoint.position).normalized;
 
-        Rigidbody2D bulletRb = bullet.GetComponent<Rigidbody2D>();
-        if (bulletRb != null)
-        {
-            bulletRb.linearVelocity = dir * 8f; // Bullet speed
-        }
-
+        // Calculate angle
         float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-        bullet.transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+        bullet.transform.rotation = Quaternion.Euler(0, 0, angle);
     }
 
     void OnDrawGizmosSelected()
