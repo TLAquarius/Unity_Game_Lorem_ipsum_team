@@ -36,11 +36,20 @@ public class EnemyMeleeAI : EnemyBase // INHERITS FROM ENEMYBASE
     private float nextAttackTime;
     private int patrolIndex;
     private bool isAttacking;
+    private bool isProvoked = false;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
+
+        // Get the stats component
+        EnemyStats myStats = GetComponent<EnemyStats>();
+        if (myStats != null)
+        {
+            // Subscribe to the damage event
+            myStats.OnTakeDamage += ReactToDamage;
+        }
 
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null) player = p.transform;
@@ -56,6 +65,30 @@ public class EnemyMeleeAI : EnemyBase // INHERITS FROM ENEMYBASE
             anim.SetBool("isMoving", Mathf.Abs(rb.linearVelocity.x) > 0.1f);
             anim.SetBool("isTank", isTank);
         }
+    }
+
+    void ReactToDamage()
+    {
+        // If we are already dead, do nothing (optional check depending on your death logic)
+        if (currentState == State.Idle || currentState == State.Patrol)
+        {
+            // Force the enemy to turn and face the player immediately
+            if (player != null) FaceTarget(player.position);
+
+            // Switch to Chase
+            currentState = State.Chase;
+
+            // Provoke them: They will chase for 3 seconds even if player is far away
+            StopCoroutine("ResetProvocation");
+            StartCoroutine(ResetProvocation());
+        }
+    }
+
+    IEnumerator ResetProvocation()
+    {
+        isProvoked = true;
+        yield return new WaitForSeconds(3.0f); // How long they stay angry without seeing player
+        isProvoked = false;
     }
 
     IEnumerator MainLogic()
@@ -118,7 +151,8 @@ public class EnemyMeleeAI : EnemyBase // INHERITS FROM ENEMYBASE
                 yield break;
             }
 
-            if (dist > detectionRange * 1.5f)
+            // MODIFIED LOGIC: Only stop chasing if NOT provoked AND too far
+            if (!isProvoked && dist > detectionRange * 1.5f)
             {
                 currentState = State.Patrol;
                 yield break;

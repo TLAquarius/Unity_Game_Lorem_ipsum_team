@@ -32,6 +32,7 @@ public class PlayerController : MonoBehaviour
     public float dashCooldown = 1f;
     private bool canDash = true;
     private bool isDashing = false;
+    private bool isShooting = false;
 
     [Header("Checks")]
     public Transform groundCheck;
@@ -72,7 +73,7 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         // 1. BLOCK INPUT IF HURT OR DASHING
-        if (isDashing || isKnockedBack) return;
+        if (isDashing || isKnockedBack || isShooting) return;
 
         // 2. INPUT
         if (!isWallJumping)
@@ -148,7 +149,7 @@ public class PlayerController : MonoBehaviour
     void FixedUpdate()
     {
         // DISABLE PHYSICS MOVEMENT IF HURT/DASHING
-        if (isDashing || isKnockedBack) return;
+        if (isDashing || isKnockedBack || isShooting) return;
 
         // Reset Double Jump
         bool jumpHeld = (input != null) ? input.IsJumpHeld() : Input.GetButton("Jump");
@@ -166,6 +167,15 @@ public class PlayerController : MonoBehaviour
         }
 
         ApplyBetterGravity(jumpHeld);
+    }
+
+    public void SetShooting(bool state)
+    {
+        isShooting = state;
+        if (isShooting)
+        {
+            rb.linearVelocity = Vector2.zero; // Immediate stop
+        }
     }
 
     void ApplyBetterGravity(bool jumpHeld)

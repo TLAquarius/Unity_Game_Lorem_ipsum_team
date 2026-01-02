@@ -6,6 +6,7 @@ public class EnemyStats : MonoBehaviour
     public float maxHP = 100f;
     public float currentHP;
     public float xpReward = 20f;
+    public float deathDelay = 0.5f;
 
     [Header("Loot Settings")]
     public LootTable lootTable; // Drag your LootTable asset here
@@ -60,7 +61,15 @@ public class EnemyStats : MonoBehaviour
             }
         }
 
-        // 3. Destroy
-        Destroy(gameObject);
+        Animator anim = GetComponent<Animator>();
+        if (anim) anim.SetTrigger("Death"); // Add "Death" trigger to Animator
+
+        // Disable Physics so body doesn't hurt player
+        GetComponent<Collider2D>().enabled = false;
+        GetComponent<Rigidbody2D>().simulated = false;
+        this.enabled = false; // Turn off this script
+
+        // Destroy after animation finishes
+        Destroy(gameObject, deathDelay);
     }
 }

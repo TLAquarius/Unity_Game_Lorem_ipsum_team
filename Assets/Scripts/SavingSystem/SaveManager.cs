@@ -6,8 +6,18 @@ public class SaveManager : MonoBehaviour
 {
 	public static SaveManager Instance;
 	private string savePath;
+    public static bool ShouldLoadOnStart = false;
 
-	private void Awake()
+    private void Start() // Add this function
+    {
+        if (ShouldLoadOnStart)
+        {
+            LoadGame();
+            ShouldLoadOnStart = false; // Reset flag
+        }
+    }
+
+    private void Awake()
 	{
 		if (Instance == null) Instance = this;
 		else Destroy(gameObject);
@@ -56,4 +66,13 @@ public class SaveManager : MonoBehaviour
 
 		Debug.Log("Game Loaded.");
 	}
+
+    private void OnDestroy()
+    {
+        // If the object being destroyed is the current Instance, clear the static variable
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
 }
