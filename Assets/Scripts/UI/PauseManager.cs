@@ -105,21 +105,6 @@ public class PauseManager : MonoBehaviour
         settingsPanel.SetActive(true);  // Go back to Settings
     }
 
-    // --- GAME ACTIONS ---
-
-    public void SaveGame()
-    {
-        // Safety check to prevent crashing if SaveManager is missing
-        if (SaveManager.Instance != null)
-        {
-            SaveManager.Instance.SaveGame();
-        }
-        else
-        {
-            Debug.LogError("SaveManager Instance is null! Is it in the scene?");
-        }
-    }
-
     public void QuitToMainMenu()
     {
         Time.timeScale = 1f; // CRITICAL: Always unfreeze time before leaving!
