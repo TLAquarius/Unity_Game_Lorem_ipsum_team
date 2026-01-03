@@ -19,6 +19,8 @@ public class PlayerStats : MonoBehaviour, ISaveable
     public bool isInvincible = false;
     private SpriteRenderer sr;
 
+    public Audio playerAudio;
+
     // 2. RESPAWN TRACKER
     // This remembers where you last saved so we can teleport you back
     private Vector3 currentRespawnPosition;
@@ -64,7 +66,7 @@ public class PlayerStats : MonoBehaviour, ISaveable
 
         float finalDamage = Mathf.Max(damageAmount - defense, 0);
         currentHP -= finalDamage;
-
+        playerAudio.PlayHurt();
         if (currentHP <= 0)
         {
             currentHP = 0;
@@ -85,6 +87,7 @@ public class PlayerStats : MonoBehaviour, ISaveable
     // --- 3. UPDATED DEATH LOGIC ---
     void Die()
     {
+        playerAudio.PlayDeath();
         Debug.Log("Player Died! Respawning...");
         StartCoroutine(RespawnRoutine());
     }

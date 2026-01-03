@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 7aebe42de66ed4ecfbd3dabf6930850a
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - audioSource: {instanceID: 0}
+  - jumpSound: {fileID: 8300000, guid: 2a6d0c3a7051c4a579062478a6e8ee0f, type: 3}
+  - attackSound: {fileID: 8300000, guid: d23df25029f7045a39256ab485ac3949, type: 3}
+  - walkSound: {fileID: 8300000, guid: 0841d3f2cf4e147dbaa13fad98e9a798, type: 3}
+  - shootSound: {fileID: 8300000, guid: ae92fb0b402754d1bb12b188d704d17b, type: 3}
+  - rollSound: {fileID: 8300000, guid: fff11ae12195342748d5d158da955348, type: 3}
+  - hurtSound: {fileID: 8300000, guid: 27fcbbfe75c3a40c6bbc6f4825a395d9, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

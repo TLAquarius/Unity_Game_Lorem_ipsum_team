@@ -2,6 +2,9 @@ using UnityEngine;
 
 public class EnemyStats : MonoBehaviour
 {
+    [Header("Enemy Audio")]
+    public Audio enemyAudio;
+
     [Header("Base Stats")]
     public float maxHP = 100f;
     public float currentHP;
@@ -40,6 +43,7 @@ public class EnemyStats : MonoBehaviour
 
     void Die()
     {
+        enemyAudio.
         // 1. Give XP to Player
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
