@@ -148,4 +148,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   weaponToDrop: {fileID: 11400000, guid: 5c4715ea728055d45b4effd500b7144b, type: 2}
-  equipToMainSlot: 1
+  equipToMainSlot: 0

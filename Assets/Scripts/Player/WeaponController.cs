@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public class WeaponController : MonoBehaviour
 {
@@ -30,13 +31,13 @@ public class WeaponController : MonoBehaviour
 
     private Animator anim;
     private GameInput input;
-    private PlayerController playerController; // <--- NEW REF
+    private PlayerController playerController;
 
     void Start()
     {
         anim = GetComponent<Animator>();
         input = GetComponent<GameInput>();
-        playerController = GetComponent<PlayerController>(); // <--- GET REF
+        playerController = GetComponent<PlayerController>();
 
         rb = GetComponent<Rigidbody2D>();
         if (rb != null) defaultGravity = rb.gravityScale;
@@ -50,8 +51,7 @@ public class WeaponController : MonoBehaviour
 
     void Update()
     {
-        // 1. SAFETY RESET
-        // If stuck in shooting state for > 1 second, force reset
+        // 1. SAFETY RESET: If stuck in shooting state for > 1 second, force reset
         if (isShooting && Time.time - lastAttackTime > 1.0f)
         {
             ResetShootingState();
@@ -79,6 +79,7 @@ public class WeaponController : MonoBehaviour
         if (Time.time - lastInputTime < inputBufferTime)
         {
             if (isShooting) return; // Cannot interrupt shooting loop
+
             if (mainWeapon != null || subWeapon != null)
             {
                 float timeBetweenAttacks = 1f / (bufferedMainAttack ? mainWeapon.attackRate : subWeapon.attackRate);
@@ -129,23 +130,24 @@ public class WeaponController : MonoBehaviour
         {
             if (weapon.isRanged)
             {
-                // --- LOCK INPUT & SUSPEND GRAVITY ---
-                isShooting = true;
+                // --- RANGED ATTACK LOGIC ---
 
-                // Tell PlayerController to stop processing inputs
-                if (playerController != null) playerController.SetShooting(true);
+                // 1. Play Animation (Visual only)
+                // Use a generic "Attack1" or specific "Shoot" animation if you have one.
+                // If "Block" was a placeholder, change it to your actual shoot animation name.
+                anim.Play("Block", -1, 0f);
 
-                if (rb != null)
-                {
-                    rb.linearVelocity = Vector2.zero; // Stop instantly
-                    rb.gravityScale = 0f;       // Float in air
-                }
+                // 2. SHOOT INSTANTLY (New Logic)
+                ShootProjectile(weapon);
 
-                anim.Play("Block", -1, 0f); // Replace "Block" with your Bow animation name
+                // 3. Freeze player briefly for recoil effect
+                StartCoroutine(BriefStopRoutine());
+
                 comboStep = 0;
             }
             else
             {
+                // --- MELEE ATTACK LOGIC ---
                 comboStep++;
                 if (comboStep > 3) comboStep = 1;
                 anim.Play("Attack" + comboStep, -1, 0f);
@@ -153,46 +155,74 @@ public class WeaponController : MonoBehaviour
         }
     }
 
-    // TRIGGERED BY ANIMATION EVENT
-    public void AnimationEvent_DealDamage()
+    // --- NEW SHOOTING FUNCTION ---
+    void ShootProjectile(WeaponData weapon)
     {
-        // --- RESTORE GRAVITY ---
-        // As soon as the bullet fires, gravity returns and player falls
-        ResetShootingState();
-
-        if (activeWeapon == null) return;
-
-        if (activeWeapon.isRanged)
+        if (weapon.projectilePrefab != null)
         {
-            if (activeWeapon.projectilePrefab != null)
+            // 1. Calculate Direction based on Player Facing
+            // We check localScale.x to see if player is facing Right (1) or Left (-1)
+            Vector2 direction = (transform.localScale.x > 0) ? Vector2.right : Vector2.left;
+
+            // 2. Spawn the Bullet
+            GameObject bulletObj = Instantiate(weapon.projectilePrefab, firePoint.position, Quaternion.identity);
+
+            // 3. Setup the Bullet Script
+            Bullet b = bulletObj.GetComponent<Bullet>();
+            if (b != null)
             {
-                GameObject bullet = Instantiate(activeWeapon.projectilePrefab, firePoint.position, firePoint.rotation);
-                Bullet b = bullet.GetComponent<Bullet>();
-                if (b != null)
-                {
-                    b.speed = activeWeapon.projectileSpeed;
-                    b.damage = activeWeapon.damage;
-                }
-                // Handle shooting left
-                if (transform.localScale.x < 0)
-                {
-                    b.transform.localScale = new Vector3(-1, 1, 1);
-                    b.speed *= -1;
-                }
-            }
-        }
-        else
-        {
-            Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, currentAttackRadius, enemyLayers);
-            foreach (Collider2D enemy in hitEnemies)
-            {
-                EnemyStats stats = enemy.GetComponent<EnemyStats>();
-                if (stats != null) stats.TakeDamage(activeWeapon.damage);
+                b.damage = weapon.damage;
+                b.speed = weapon.projectileSpeed;
+
+                // CRITICAL: Call the Setup function to fix rotation and velocity
+                b.Setup(direction);
             }
         }
     }
 
-    // ... Load/Save Logic (Same as before) ...
+    // --- RECOIL ROUTINE ---
+    IEnumerator BriefStopRoutine()
+    {
+        isShooting = true;
+
+        // Lock player movement
+        if (playerController != null) playerController.SetShooting(true);
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.gravityScale = 0f; // Optional: Float while shooting
+        }
+
+        // Wait for a short duration (e.g., 0.3 seconds)
+        yield return new WaitForSeconds(0.3f);
+
+        // Unlock player
+        ResetShootingState();
+    }
+
+    // --- ANIMATION EVENT (MODIFIED) ---
+    // This is now ONLY used for MELEE damage synchronization.
+    // Ranged attacks are handled immediately in Attack(), so we ignore them here.
+    public void AnimationEvent_DealDamage()
+    {
+        // Safety: If this triggers for a ranged weapon, do nothing (we already shot)
+        if (activeWeapon != null && activeWeapon.isRanged) return;
+
+        // Restore gravity for melee (in case it was altered)
+        ResetShootingState();
+
+        if (activeWeapon == null) return;
+
+        // --- MELEE HITBOX LOGIC ---
+        Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, currentAttackRadius, enemyLayers);
+        foreach (Collider2D enemy in hitEnemies)
+        {
+            EnemyStats stats = enemy.GetComponent<EnemyStats>();
+            if (stats != null) stats.TakeDamage(activeWeapon.damage);
+        }
+    }
+
+    // ... Load/Save Logic (Unchanged) ...
     private WeaponData LoadWeaponByName(string name) { return Resources.Load<WeaponData>("Weapons/" + name); }
     public void SaveData(SaveData data)
     {
