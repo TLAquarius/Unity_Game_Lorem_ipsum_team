@@ -68,8 +68,12 @@ public class EnemyMeleeAI : EnemyBase
     {
         if (anim != null)
         {
-            anim.SetBool("isMoving", Mathf.Abs(rb.linearVelocity.x) > 0.1f);
+            bool moving = Mathf.Abs(rb.linearVelocity.x) > 0.1f;
+            anim.SetBool("isMoving", moving);
             anim.SetBool("isTank", isTank);
+
+            // NEW: Play Walk Sound
+            HandleWalkSound(moving);
         }
     }
 
@@ -85,6 +89,7 @@ public class EnemyMeleeAI : EnemyBase
     IEnumerator HurtRoutine()
     {
         // A. Set State to HIT (Stops movement logic)
+        PlayHitFeedback();
         currentState = State.Hit;
         isAttacking = false;
 

@@ -70,8 +70,12 @@ public class EnemyFlyingAI : EnemyBase // INHERITS FROM ENEMYBASE
         // Visual Rotation logic (Face Player or Movement)
         if (anim != null)
         {
-            // Just check if we are moving significantly
-            anim.SetBool("isMoving", rb.linearVelocity.magnitude > 0.1f);
+            bool moving = rb.linearVelocity.magnitude > 0.1f;
+
+            if (anim != null) anim.SetBool("isMoving", moving);
+
+            // NEW: Play Flying/Flap Sound
+            HandleWalkSound(moving);
         }
 
         // Handle Facing Direction
@@ -95,6 +99,7 @@ public class EnemyFlyingAI : EnemyBase // INHERITS FROM ENEMYBASE
 
     IEnumerator HurtRoutine()
     {
+        PlayHitFeedback();
         currentState = State.Hit;
         if (anim) anim.SetTrigger("Hurt");
 

@@ -65,8 +65,11 @@ public class EnemyRangedAI : EnemyBase // INHERITS FROM ENEMYBASE
     {
         if (anim != null)
         {
-            // We are moving if velocity X is significant
-            anim.SetBool("isMoving", Mathf.Abs(rb.linearVelocity.x) > 0.1f);
+            bool moving = Mathf.Abs(rb.linearVelocity.x) > 0.1f;
+            anim.SetBool("isMoving", moving);
+
+            // NEW: Play Walk Sound
+            HandleWalkSound(moving);
         }
     }
 
@@ -81,6 +84,7 @@ public class EnemyRangedAI : EnemyBase // INHERITS FROM ENEMYBASE
 
     IEnumerator HurtRoutine()
     {
+        PlayHitFeedback();
         currentState = State.Hit;
 
         // 1. Visual & Physics
