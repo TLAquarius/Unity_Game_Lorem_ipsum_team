@@ -58,8 +58,8 @@ public class EnemyFlyingAI : EnemyBase // INHERITS FROM ENEMYBASE
 
         if (stats != null) stats.OnTakeDamage += ReactToDamage;
 
-        GameObject p = GameObject.FindGameObjectWithTag("Player");
-        if (p != null) player = p.transform;
+        //GameObject p = GameObject.FindGameObjectWithTag("Player");
+        //if (p != null) player = p.transform;
 
         currentState = State.Patrol;
         StartCoroutine(MainLogic());
@@ -131,8 +131,26 @@ public class EnemyFlyingAI : EnemyBase // INHERITS FROM ENEMYBASE
     // --- MAIN LOOP ---
     IEnumerator MainLogic()
     {
+        // 1. SAFETY CHECK: Keep trying to find the player if null
+        while (player == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null)
+            {
+                player = p.transform;
+                Debug.Log("Enemy found Player!"); // Debug to confirm it works
+            }
+            else
+            {
+                // Wait 0.5 seconds before trying again so we don't crash the CPU
+                yield return new WaitForSeconds(0.5f);
+            }
+        }
+
+        // 2. Normal AI Logic (This only runs once Player is found)
         while (true)
         {
+            // If player dies or is destroyed mid-game, stop logic safely
             if (player == null) yield break;
 
             switch (currentState)
@@ -145,6 +163,9 @@ public class EnemyFlyingAI : EnemyBase // INHERITS FROM ENEMYBASE
                     break;
                 case State.Attack:
                     yield return StartCoroutine(AttackRoutine());
+                    break;
+                case State.Hit: // Add this to prevent logic overlap during stun
+                    yield return null;
                     break;
             }
             yield return null;

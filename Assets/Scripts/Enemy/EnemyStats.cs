@@ -2,8 +2,7 @@ using UnityEngine;
 
 public class EnemyStats : MonoBehaviour
 {
-    [Header("Enemy Audio")]
-    public Audio enemyAudio;
+    // REMOVED: broken 'Audio' variable. We now use EnemyBase for audio.
 
     [Header("Base Stats")]
     public float maxHP = 100f;
@@ -21,9 +20,13 @@ public class EnemyStats : MonoBehaviour
     public delegate void DamageEvent();
     public event DamageEvent OnTakeDamage;
 
+    // Reference to the main base script to access Audio
+    private EnemyBase enemyBase;
+
     void Start()
     {
         currentHP = maxHP;
+        enemyBase = GetComponent<EnemyBase>(); // Automatically find the base script on this object
     }
 
     public void TakeDamage(float amount)
@@ -43,8 +46,13 @@ public class EnemyStats : MonoBehaviour
 
     void Die()
     {
-        enemyAudio.
-        // 1. Give XP to Player
+        // 1. Play Audio (Fixed Logic)
+        if (enemyBase != null)
+        {
+            enemyBase.PlayDeathSound();
+        }
+
+        // 2. Give XP to Player
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
@@ -55,7 +63,7 @@ public class EnemyStats : MonoBehaviour
             }
         }
 
-        // 2. Drop Loot
+        // 3. Drop Loot
         if (lootTable != null)
         {
             GameObject drop = lootTable.GetDrop();
@@ -66,7 +74,7 @@ public class EnemyStats : MonoBehaviour
         }
 
         Animator anim = GetComponent<Animator>();
-        if (anim) anim.SetTrigger("Death"); // Add "Death" trigger to Animator
+        if (anim) anim.SetTrigger("Death");
 
         // Disable Physics so body doesn't hurt player
         GetComponent<Collider2D>().enabled = false;

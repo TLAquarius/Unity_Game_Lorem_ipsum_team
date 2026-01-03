@@ -21,6 +21,7 @@ public class EnemyBase : MonoBehaviour
     [Header("Audio Settings")]
     public AudioClip hitSound;
     public AudioClip walkSound;
+    public AudioClip deathSound;           // <--- NEW: Drag your death sound here in Inspector
     public float walkSoundInterval = 0.4f; // Time between footsteps
 
     protected AudioSource audioSource;
@@ -84,7 +85,16 @@ public class EnemyBase : MonoBehaviour
         }
     }
 
-    // 4. WALKING SOUND (Called by Child Scripts in Update)
+    // 4. NEW: DEATH SOUND (Called by EnemyStats)
+    public void PlayDeathSound()
+    {
+        if (deathSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(deathSound);
+        }
+    }
+
+    // 5. WALKING SOUND (Called by Child Scripts in Update)
     public void HandleWalkSound(bool isMoving)
     {
         if (isMoving && Time.time >= nextWalkSoundTime)

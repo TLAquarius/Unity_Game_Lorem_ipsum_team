@@ -1,12 +1,17 @@
 using UnityEngine;
 using System.Collections;
 
+[RequireComponent(typeof(AudioSource))]
 public class WeaponController : MonoBehaviour
 {
     [Header("Weapon Slots")]
     public WeaponData mainWeapon;
     public WeaponData subWeapon;
     private WeaponData activeWeapon;
+
+    [Header("Audio")]
+    public AudioClip equipSound; // Drag your "Sword Draw" sound here
+    private AudioSource audioSource;
 
     [Header("Combo System")]
     public float comboResetTime = 0.8f;
@@ -38,6 +43,7 @@ public class WeaponController : MonoBehaviour
         anim = GetComponent<Animator>();
         input = GetComponent<GameInput>();
         playerController = GetComponent<PlayerController>();
+        audioSource = GetComponent<AudioSource>(); // Get Audio Component
 
         rb = GetComponent<Rigidbody2D>();
         if (rb != null) defaultGravity = rb.gravityScale;
@@ -51,7 +57,7 @@ public class WeaponController : MonoBehaviour
 
     void Update()
     {
-        // 1. SAFETY RESET: If stuck in shooting state for > 1 second, force reset
+        // 1. SAFETY RESET
         if (isShooting && Time.time - lastAttackTime > 1.0f)
         {
             ResetShootingState();
@@ -78,7 +84,7 @@ public class WeaponController : MonoBehaviour
         // 4. EXECUTE ATTACK
         if (Time.time - lastInputTime < inputBufferTime)
         {
-            if (isShooting) return; // Cannot interrupt shooting loop
+            if (isShooting) return;
 
             if (mainWeapon != null || subWeapon != null)
             {
@@ -95,11 +101,10 @@ public class WeaponController : MonoBehaviour
         }
     }
 
-    // --- HELPER TO RESET STATE ---
     void ResetShootingState()
     {
         isShooting = false;
-        if (playerController != null) playerController.SetShooting(false); // Unfreeze Player
+        if (playerController != null) playerController.SetShooting(false);
 
         if (rb != null)
         {
@@ -107,11 +112,20 @@ public class WeaponController : MonoBehaviour
         }
     }
 
-    public void EquipWeapon(WeaponData newWeapon, bool isMain)
+    // --- UPDATED EQUIP LOGIC ---
+    // Added 'playAudio' parameter with default = true
+    public void EquipWeapon(WeaponData newWeapon, bool isMain, bool playAudio = true)
     {
         if (isMain) mainWeapon = newWeapon;
         else subWeapon = newWeapon;
+
         UpdateVisuals(newWeapon);
+
+        // Play Sound (only if requested)
+        if (playAudio && audioSource != null && equipSound != null)
+        {
+            audioSource.PlayOneShot(equipSound);
+        }
     }
 
     void UpdateVisuals(WeaponData weapon)
@@ -130,24 +144,13 @@ public class WeaponController : MonoBehaviour
         {
             if (weapon.isRanged)
             {
-                // --- RANGED ATTACK LOGIC ---
-
-                // 1. Play Animation (Visual only)
-                // Use a generic "Attack1" or specific "Shoot" animation if you have one.
-                // If "Block" was a placeholder, change it to your actual shoot animation name.
                 anim.Play("Block", -1, 0f);
-
-                // 2. SHOOT INSTANTLY (New Logic)
                 ShootProjectile(weapon);
-
-                // 3. Freeze player briefly for recoil effect
                 StartCoroutine(BriefStopRoutine());
-
                 comboStep = 0;
             }
             else
             {
-                // --- MELEE ATTACK LOGIC ---
                 comboStep++;
                 if (comboStep > 3) comboStep = 1;
                 anim.Play("Attack" + comboStep, -1, 0f);
@@ -155,65 +158,43 @@ public class WeaponController : MonoBehaviour
         }
     }
 
-    // --- NEW SHOOTING FUNCTION ---
     void ShootProjectile(WeaponData weapon)
     {
         if (weapon.projectilePrefab != null)
         {
-            // 1. Calculate Direction based on Player Facing
-            // We check localScale.x to see if player is facing Right (1) or Left (-1)
             Vector2 direction = (transform.localScale.x > 0) ? Vector2.right : Vector2.left;
-
-            // 2. Spawn the Bullet
             GameObject bulletObj = Instantiate(weapon.projectilePrefab, firePoint.position, Quaternion.identity);
 
-            // 3. Setup the Bullet Script
             Bullet b = bulletObj.GetComponent<Bullet>();
             if (b != null)
             {
                 b.damage = weapon.damage;
                 b.speed = weapon.projectileSpeed;
-
-                // CRITICAL: Call the Setup function to fix rotation and velocity
                 b.Setup(direction);
             }
         }
     }
 
-    // --- RECOIL ROUTINE ---
     IEnumerator BriefStopRoutine()
     {
         isShooting = true;
-
-        // Lock player movement
         if (playerController != null) playerController.SetShooting(true);
         if (rb != null)
         {
             rb.linearVelocity = Vector2.zero;
-            rb.gravityScale = 0f; // Optional: Float while shooting
+            rb.gravityScale = 0f;
         }
 
-        // Wait for a short duration (e.g., 0.3 seconds)
         yield return new WaitForSeconds(0.3f);
-
-        // Unlock player
         ResetShootingState();
     }
 
-    // --- ANIMATION EVENT (MODIFIED) ---
-    // This is now ONLY used for MELEE damage synchronization.
-    // Ranged attacks are handled immediately in Attack(), so we ignore them here.
     public void AnimationEvent_DealDamage()
     {
-        // Safety: If this triggers for a ranged weapon, do nothing (we already shot)
         if (activeWeapon != null && activeWeapon.isRanged) return;
-
-        // Restore gravity for melee (in case it was altered)
         ResetShootingState();
-
         if (activeWeapon == null) return;
 
-        // --- MELEE HITBOX LOGIC ---
         Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, currentAttackRadius, enemyLayers);
         foreach (Collider2D enemy in hitEnemies)
         {
@@ -222,20 +203,24 @@ public class WeaponController : MonoBehaviour
         }
     }
 
-    // ... Load/Save Logic (Unchanged) ...
     private WeaponData LoadWeaponByName(string name) { return Resources.Load<WeaponData>("Weapons/" + name); }
+
     public void SaveData(SaveData data)
     {
         data.weaponIDs.Clear();
         if (mainWeapon != null) data.weaponIDs.Add(mainWeapon.name);
         if (subWeapon != null) data.weaponIDs.Add(subWeapon.name);
     }
+
     public void LoadData(SaveData data)
     {
         if (data.weaponIDs.Count > 0) mainWeapon = LoadWeaponByName(data.weaponIDs[0]);
         if (data.weaponIDs.Count > 1) subWeapon = LoadWeaponByName(data.weaponIDs[1]);
-        if (mainWeapon != null) EquipWeapon(mainWeapon, true);
+
+        // IMPORTANT: Pass 'false' here so we don't hear "SHWING!" when loading the game
+        if (mainWeapon != null) EquipWeapon(mainWeapon, true, false);
     }
+
     void OnDrawGizmosSelected()
     {
         if (attackPoint == null) return;

@@ -18,6 +18,7 @@ public class PlayerStats : MonoBehaviour, ISaveable
     public float mercyTime = 1.0f;
     public bool isInvincible = false;
     private SpriteRenderer sr;
+    private Animator anim;
 
     public Audio playerAudio;
 
@@ -28,6 +29,7 @@ public class PlayerStats : MonoBehaviour, ISaveable
     void Start()
     {
         sr = GetComponent<SpriteRenderer>();
+        anim = GetComponent<Animator>();
         CalculateXPRequired();
 
         // Default respawn point is where you start the game
@@ -85,36 +87,45 @@ public class PlayerStats : MonoBehaviour, ISaveable
     }
 
     // --- 3. UPDATED DEATH LOGIC ---
+    // --- UPDATED DEATH LOGIC ---
     void Die()
     {
-        playerAudio.PlayDeath();
-        Debug.Log("Player Died! Respawning...");
+        // 1. Trigger Animation
+        anim.SetTrigger("Death");
+
+        // 2. Play Sound
+        if (playerAudio != null) playerAudio.PlayDeath();
+
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        rb.linearVelocity = Vector2.zero;
+        rb.bodyType = RigidbodyType2D.Kinematic;
+
+        Debug.Log("Player Died! Playing animation...");
         StartCoroutine(RespawnRoutine());
     }
 
     IEnumerator RespawnRoutine()
     {
-        // A. FREEZE PLAYER
-        GetComponent<PlayerController>().enabled = false; // Stop moving
-        GetComponent<Collider2D>().enabled = false;       // Can't get hit
-        GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero; // Stop physics
+        
+        yield return null;
 
-        // Visuals: Fade out or turn red
-        if (sr != null) sr.enabled = false;
+        float deathAnimLength = anim.GetCurrentAnimatorStateInfo(0).length;
 
-        // B. WAIT
-        yield return new WaitForSeconds(2.0f); // 2 Seconds delay
+       
+        yield return new WaitForSeconds(deathAnimLength + 1.0f);
 
-        // C. RESPAWN (Teleport to last Campfire/Save)
-        transform.position = currentRespawnPosition;
-        currentHP = maxHP; // Fully Heal
+        transform.position = currentRespawnPosition; 
+        currentHP = maxHP; // Full Heal
 
-        // D. UNFREEZE
-        if (sr != null) sr.enabled = true;
-        GetComponent<Collider2D>().enabled = true;
+        anim.Rebind(); 
+        anim.Update(0f);
+
+
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        rb.bodyType = RigidbodyType2D.Dynamic; // Turn gravity back on
         GetComponent<PlayerController>().enabled = true;
 
-        // Optional: Trigger mercy invincibility so you don't die instantly upon respawn
+
         StartCoroutine(MercyRoutine());
     }
 
@@ -141,9 +152,6 @@ public class PlayerStats : MonoBehaviour, ISaveable
         // Save Stats
         data.currentLevel = this.level;
         data.currentHP = this.currentHP;
-        // NOTE: We could save currentXP here too if we added it to SaveData.cs
-
-        // CRITICAL: When we save (at a Campfire), update the Respawn Point!
         currentRespawnPosition = transform.position;
     }
 

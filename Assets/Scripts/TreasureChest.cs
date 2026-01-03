@@ -1,10 +1,27 @@
 using UnityEngine;
 
-public class TreasureChest : MonoBehaviour, IInteractable // Uses the Interface
+// 1. Automatically add an AudioSource component if missing
+[RequireComponent(typeof(AudioSource))]
+public class TreasureChest : MonoBehaviour, IInteractable
 {
     public bool isOpen = false;
-    public Sprite openSprite; // Drag an image of an open chest here
-    public GameObject itemToDrop; // Drag your WeaponPickup or Potion prefab here
+
+    [Header("Visuals")]
+    public Sprite openSprite; // Drag image of open chest here
+
+    [Header("Loot")]
+    public GameObject itemToDrop; // Drag WeaponPickup or Potion prefab here
+
+    [Header("Audio")]
+    public AudioClip openSound; // <--- Drag your chest opening sound here
+
+    private AudioSource audioSource;
+
+    void Start()
+    {
+        // 2. Get the reference to the AudioSource component
+        audioSource = GetComponent<AudioSource>();
+    }
 
     public void Interact()
     {
@@ -12,6 +29,12 @@ public class TreasureChest : MonoBehaviour, IInteractable // Uses the Interface
 
         Debug.Log("Chest Opened!");
         isOpen = true;
+
+        // 3. Play Sound
+        if (audioSource != null && openSound != null)
+        {
+            audioSource.PlayOneShot(openSound);
+        }
 
         // Change visual
         if (openSprite != null)

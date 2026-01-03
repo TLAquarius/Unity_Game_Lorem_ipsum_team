@@ -79,7 +79,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: 21300000, guid: 14a999e6bc2c34f368b03649dead9d94, type: 3}
-  m_Color: {r: 0.9245283, g: 0.7879697, b: 0.14478454, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -150,3 +150,4 @@ MonoBehaviour:
   isOpen: 0
   openSprite: {fileID: 21300000, guid: 1c94b4117c4854885beb4d2779c5a9d0, type: 3}
   itemToDrop: {fileID: 0}
+  openSound: {fileID: 8300000, guid: 98b6c536b019847a9bfc71332a10b2d2, type: 3}

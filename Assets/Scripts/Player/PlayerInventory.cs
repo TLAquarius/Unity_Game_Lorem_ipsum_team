@@ -1,29 +1,34 @@
 using UnityEngine;
-using UnityEngine.UI; // For the UI Text
+using UnityEngine.UI;
 
+[RequireComponent(typeof(AudioSource))] // Ensures Player has AudioSource
 public class PlayerInventory : MonoBehaviour
 {
     [Header("Potions")]
     public int potionCount = 0;
-    public int maxPotions = 3; // Limit how many they can carry
+    public int maxPotions = 3;
     public float healAmount = 30f;
 
+    [Header("Audio")]
+    public AudioClip potionPickupSound; // Drag your 'Glug' or 'Pickup' sound here
+
     [Header("UI Reference")]
-    public Text potionCountText; // Drag a UI Text here later
+    public Text potionCountText;
 
     private PlayerStats stats;
     private GameInput input;
+    private AudioSource audioSource; // Reference to audio source
 
     void Start()
     {
         stats = GetComponent<PlayerStats>();
         input = GetComponent<GameInput>();
+        audioSource = GetComponent<AudioSource>(); // Get the component
         UpdateUI();
     }
 
     void Update()
     {
-        // Check for Input
         if (input.IsHealPressed())
         {
             UsePotion();
@@ -35,6 +40,13 @@ public class PlayerInventory : MonoBehaviour
         if (potionCount < maxPotions)
         {
             potionCount++;
+
+            // PLAY SOUND HERE
+            if (audioSource != null && potionPickupSound != null)
+            {
+                audioSource.PlayOneShot(potionPickupSound);
+            }
+
             UpdateUI();
             Debug.Log("Picked up Potion! Count: " + potionCount);
         }
@@ -46,13 +58,9 @@ public class PlayerInventory : MonoBehaviour
 
     void UsePotion()
     {
-        // 1. Check if we have potions
         if (potionCount <= 0) return;
-
-        // 2. Check if we actually need healing
         if (stats.currentHP >= stats.maxHP) return;
 
-        // 3. Heal and Reduce Count
         stats.Heal(healAmount);
         potionCount--;
         UpdateUI();
@@ -71,10 +79,9 @@ public class PlayerInventory : MonoBehaviour
         data.potionCount = this.potionCount;
     }
 
-    // 3. Implement Load
     public void LoadData(SaveData data)
     {
         this.potionCount = data.potionCount;
-        UpdateUI(); // Refresh UI immediately after loading
+        UpdateUI();
     }
 }
