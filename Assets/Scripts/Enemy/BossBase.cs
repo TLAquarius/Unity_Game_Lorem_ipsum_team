@@ -1,52 +1,68 @@
 using UnityEngine;
-using UnityEngine.UI; // For HP Bar
+using UnityEngine.UI;
 
-public class BossBase : MonoBehaviour
+// Inherits from EnemyBase so it gets Hit Sounds, Flash Effects, and Knockback logic
+[RequireComponent(typeof(EnemyStats))]
+public class BossBase : EnemyBase
 {
-    [Header("Base Stats")]
-    public float maxHP = 500f;
-    public float currentHP;
+    [Header("Boss UI")]
     public string bossName = "Boss";
-    public Slider healthBar; // Drag UI Slider here
+    public Slider healthBar; // Drag a UI Slider here
+    public GameObject bossCanvas; // The whole UI object (to hide/show)
 
-    [Header("Phases")]
-    public bool hasPhase2 = false;
+    [Header("Phase Settings")]
+    public bool hasPhase2 = true;
     public float phase2Threshold = 0.5f; // 50% HP
     protected bool isPhase2 = false;
     protected bool isDead = false;
 
     protected Transform player;
-    protected EnemyStats stats; // Reuse your existing EnemyStats for damage logic
+    protected EnemyStats stats;
+    protected Animator anim;
 
     protected virtual void Start()
     {
-        currentHP = maxHP;
+        // Setup Components
+        stats = GetComponent<EnemyStats>();
+        anim = GetComponent<Animator>();
         player = GameObject.FindGameObjectWithTag("Player").transform;
 
-        // Setup UI
-        if (healthBar != null)
+        // Listen to Damage Event
+        if (stats != null)
         {
-            healthBar.maxValue = maxHP;
-            healthBar.value = currentHP;
+            stats.OnTakeDamage += UpdateHealthUI;
+
+            // Setup UI Max Values
+            if (healthBar != null)
+            {
+                healthBar.maxValue = stats.maxHP;
+                healthBar.value = stats.currentHP;
+            }
         }
+
+        // Show Health Bar
+        if (bossCanvas != null) bossCanvas.SetActive(true);
     }
 
-    // Called by EnemyStats when hit
-    public void TakeDamage(float damage)
+    // Called automatically when EnemyStats takes damage
+    protected virtual void UpdateHealthUI()
     {
         if (isDead) return;
 
-        currentHP -= damage;
-        if (healthBar != null) healthBar.value = currentHP;
+        // 1. Update Slider
+        if (healthBar != null) healthBar.value = stats.currentHP;
 
-        // Check Phase 2
-        if (hasPhase2 && !isPhase2 && currentHP <= maxHP * phase2Threshold)
+        // 2. Play Hurt Effect (From EnemyBase)
+        PlayHitFeedback();
+
+        // 3. Check Phase 2
+        if (hasPhase2 && !isPhase2 && stats.currentHP <= stats.maxHP * phase2Threshold)
         {
             EnterPhase2();
         }
 
-        // Check Death
-        if (currentHP <= 0)
+        // 4. Check Death
+        if (stats.currentHP <= 0)
         {
             Die();
         }
@@ -55,16 +71,31 @@ public class BossBase : MonoBehaviour
     protected virtual void EnterPhase2()
     {
         isPhase2 = true;
-        Debug.Log(bossName + " enters Phase 2!");
-        // Play Roar Animation / Change Color
-        GetComponent<SpriteRenderer>().color = Color.red;
+        Debug.Log(bossName + " ENRAGED!");
+
+        // Visual Feedback: Turn Red
+        GetComponent<SpriteRenderer>().color = new Color(1f, 0.5f, 0.5f); // Red tint
+
+        // Push player away slightly on phase change (Optional)
+        if (player != null)
+        {
+            Vector2 pushDir = (player.position - transform.position).normalized;
+            player.GetComponent<PlayerController>()?.ApplyKnockback(pushDir * 10f);
+        }
     }
 
     protected virtual void Die()
     {
         isDead = true;
-        Debug.Log(bossName + " Defeated!");
-        Destroy(gameObject);
-        // Trigger Level Complete UI here
+        if (anim) anim.SetTrigger("Death");
+
+        // Hide UI
+        if (healthBar != null) healthBar.gameObject.SetActive(false);
+
+        // Disable Physics
+        GetComponent<Collider2D>().enabled = false;
+        GetComponent<Rigidbody2D>().simulated = false;
+
+        // Destroy object handled by EnemyStats death delay
     }
 }

@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 490507104799676067}
   - component: {fileID: -1811732187749946839}
   - component: {fileID: 6316722358959735976}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: BeeBullet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
