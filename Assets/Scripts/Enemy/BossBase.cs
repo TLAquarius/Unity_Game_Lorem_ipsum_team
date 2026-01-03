@@ -10,6 +10,9 @@ public class BossBase : EnemyBase
     public Slider healthBar; // Drag a UI Slider here
     public GameObject bossCanvas; // The whole UI object (to hide/show)
 
+    [Header("Level Completion")]
+    public VictoryScreen victoryScreen; // DRAG THE VICTORY MANAGER HERE
+
     [Header("Phase Settings")]
     public bool hasPhase2 = true;
     public float phase2Threshold = 0.5f; // 50% HP
@@ -25,7 +28,8 @@ public class BossBase : EnemyBase
         // Setup Components
         stats = GetComponent<EnemyStats>();
         anim = GetComponent<Animator>();
-        player = GameObject.FindGameObjectWithTag("Player").transform;
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
+        if (p != null) player = p.transform;
 
         // Listen to Damage Event
         if (stats != null)
@@ -76,11 +80,12 @@ public class BossBase : EnemyBase
         // Visual Feedback: Turn Red
         GetComponent<SpriteRenderer>().color = new Color(1f, 0.5f, 0.5f); // Red tint
 
-        // Push player away slightly on phase change (Optional)
+        // Push player away slightly on phase change
         if (player != null)
         {
             Vector2 pushDir = (player.position - transform.position).normalized;
-            player.GetComponent<PlayerController>()?.ApplyKnockback(pushDir * 10f);
+            PlayerController pc = player.GetComponent<PlayerController>();
+            if (pc != null) pc.ApplyKnockback(pushDir * 10f);
         }
     }
 
@@ -89,13 +94,27 @@ public class BossBase : EnemyBase
         isDead = true;
         if (anim) anim.SetTrigger("Death");
 
-        // Hide UI
+        Debug.Log("Boss Defeated!");
+
+        // Hide Boss Health Bar
         if (healthBar != null) healthBar.gameObject.SetActive(false);
+        if (bossCanvas != null) bossCanvas.SetActive(false);
 
         // Disable Physics
         GetComponent<Collider2D>().enabled = false;
         GetComponent<Rigidbody2D>().simulated = false;
 
-        // Destroy object handled by EnemyStats death delay
+        // --- TRIGGER VICTORY ---
+        if (victoryScreen != null)
+        {
+            victoryScreen.ShowVictory(); // Call the UI
+        }
+        else
+        {
+            Debug.LogWarning("Victory Screen not assigned to Boss!");
+        }
+
+        // Destroy object handled by EnemyStats death delay (usually 1-2 seconds)
+        // Note: Destroying the boss object is fine, provided the Victory Screen script is on a separate GameManager object.
     }
 }
