@@ -4,7 +4,7 @@ using System.Collections;
 public class BossJungle : BossBase
 {
     [Header("Jungle Boss Visuals")]
-    public bool spriteFacesLeft = true; // Check if your sprite looks Left by default
+    public bool spriteFacesLeft = true;
     private Vector3 initialScale;
 
     [Header("Projectile Settings")]
@@ -12,23 +12,20 @@ public class BossJungle : BossBase
     public Transform firePoint;
 
     [Header("Combat Stats")]
-    public float keepDistance = 6f; // Ideal range
+    public float detectionRange = 15f; // --- NEW: Max range to start fighting
+    public float keepDistance = 6f;    // Ideal kiting range
     public float moveSpeed = 3f;
     public float fireRate = 1.5f;
-    public float phase2FireRate = 0.8f; // Faster shooting in Phase 2
+    public float phase2FireRate = 0.8f;
 
-    // Delays the bullet spawn to match the animation frame
     private float attackAnimDelay = 0.4f;
-
     private float nextFireTime;
     private Rigidbody2D rb;
 
     protected override void Start()
     {
-        base.Start(); // Run BossBase setup
+        base.Start();
         rb = GetComponent<Rigidbody2D>();
-
-        // 1. CAPTURE THE SIZE YOU SET IN THE INSPECTOR
         initialScale = transform.localScale;
     }
 
@@ -40,14 +37,25 @@ public class BossJungle : BossBase
             return;
         }
 
-        HandleMovement();
+        // --- NEW: Distance Check Logic ---
+        float dist = Vector2.Distance(transform.position, player.position);
+
+        // If player is outside detection range, Boss stays idle
+        if (dist > detectionRange)
+        {
+            rb.linearVelocity = Vector2.zero;
+            if (anim) anim.SetBool("isMoving", false);
+            return; // Exit Update early so he doesn't shoot or move
+        }
+
+        // If inside range, proceed with combat logic
+        HandleMovement(dist); // Pass distance to avoid recalculating
         HandleShooting();
         HandleFacing();
     }
 
-    void HandleMovement()
+    void HandleMovement(float dist)
     {
-        float dist = Vector2.Distance(transform.position, player.position);
         float currentSpeed = isPhase2 ? moveSpeed * 1.5f : moveSpeed;
 
         // 1. Too Close? Run Away (Kiting)
@@ -55,7 +63,7 @@ public class BossJungle : BossBase
         {
             MoveAway(player.position, currentSpeed);
         }
-        // 2. Too Far? Chase
+        // 2. Too Far? Chase (But only if within detectionRange, which is checked in Update)
         else if (dist > keepDistance + 1f)
         {
             MoveTowards(player.position, currentSpeed);
@@ -74,44 +82,37 @@ public class BossJungle : BossBase
     {
         if (Time.time >= nextFireTime)
         {
-            // Stop moving briefly to shoot
-            rb.linearVelocity = Vector2.zero;
+            rb.linearVelocity = Vector2.zero; // Stop to shoot
 
             if (isPhase2)
             {
-                StartCoroutine(ShootShotgunRoutine()); // 3 Bullets
+                StartCoroutine(ShootShotgunRoutine());
                 nextFireTime = Time.time + phase2FireRate;
             }
             else
             {
-                StartCoroutine(ShootSingleRoutine()); // 1 Bullet
+                StartCoroutine(ShootSingleRoutine());
                 nextFireTime = Time.time + fireRate;
             }
         }
     }
 
-    // --- ATTACK ROUTINES (COROUTINES) ---
+    // --- ATTACK ROUTINES ---
 
     IEnumerator ShootSingleRoutine()
     {
         if (anim) anim.SetTrigger("Attack");
-
-        // Wait for the arm to swing (Sync with Cast.anim)
         yield return new WaitForSeconds(attackAnimDelay);
-
-        SpawnBullet(0); // 0 degree offset
+        SpawnBullet(0);
     }
 
     IEnumerator ShootShotgunRoutine()
     {
         if (anim) anim.SetTrigger("Attack");
-
-        // Wait for the arm to swing
         yield return new WaitForSeconds(attackAnimDelay);
-
-        SpawnBullet(0);   // Center
-        SpawnBullet(15);  // Up angle
-        SpawnBullet(-15); // Down angle
+        SpawnBullet(0);
+        SpawnBullet(15);
+        SpawnBullet(-15);
     }
 
     void SpawnBullet(float angleOffset)
@@ -119,24 +120,18 @@ public class BossJungle : BossBase
         if (projectilePrefab == null || firePoint == null) return;
 
         GameObject bullet = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
-
-        // Calculate direction to player
         Vector2 dir = (player.position - firePoint.position).normalized;
 
-        // Apply angle offset
         float baseAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
         float finalAngle = baseAngle + angleOffset;
 
-        // Rotate bullet sprite
         bullet.transform.rotation = Quaternion.Euler(0, 0, finalAngle);
 
-        // Apply Velocity (Using the bullet's Rigidbody)
         Rigidbody2D bulletRb = bullet.GetComponent<Rigidbody2D>();
         if (bulletRb != null)
         {
-            // Convert angle back to vector for velocity
             Vector2 velDir = new Vector2(Mathf.Cos(finalAngle * Mathf.Deg2Rad), Mathf.Sin(finalAngle * Mathf.Deg2Rad));
-            bulletRb.linearVelocity = velDir * 10f; // Bullet speed
+            bulletRb.linearVelocity = velDir * 10f;
         }
     }
 
@@ -150,23 +145,26 @@ public class BossJungle : BossBase
 
     void MoveAway(Vector2 target, float speed)
     {
-        float dirX = Mathf.Sign(transform.position.x - target.x); // Opposite direction
+        float dirX = Mathf.Sign(transform.position.x - target.x);
         rb.linearVelocity = new Vector2(dirX * speed, rb.linearVelocity.y);
     }
 
     void HandleFacing()
     {
-        // Always face the player
         float dirX = Mathf.Sign(player.position.x - transform.position.x);
         float scaleX = spriteFacesLeft ? -dirX : dirX;
-
-        // 2. APPLY THE SAVED SCALE (Fixes the shrinking bug)
         transform.localScale = new Vector3(scaleX * Mathf.Abs(initialScale.x), initialScale.y, initialScale.z);
     }
 
+    // --- NEW: Visual Debugging ---
     void OnDrawGizmosSelected()
     {
+        // Green circle = Ideal Kiting Range
         Gizmos.color = Color.green;
         Gizmos.DrawWireSphere(transform.position, keepDistance);
+
+        // Red circle = Max Aggro Range
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, detectionRange);
     }
 }

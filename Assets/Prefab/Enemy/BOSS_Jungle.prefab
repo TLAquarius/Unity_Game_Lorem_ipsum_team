@@ -235,7 +235,7 @@ AudioSource:
   Priority: 128
   DopplerLevel: 1
   MinDistance: 1
-  MaxDistance: 500
+  MaxDistance: 23.433228
   Pan2D: 0
   rolloffMode: 0
   BypassEffects: 0
@@ -329,10 +329,12 @@ MonoBehaviour:
   flashDuration: 0.1
   hitSound: {fileID: 0}
   walkSound: {fileID: 0}
+  deathSound: {fileID: 0}
   walkSoundInterval: 0.4
   bossName: Boss
   healthBar: {fileID: 6239753670034676225}
   bossCanvas: {fileID: 7254553158783615738}
+  victoryScreen: {fileID: 0}
   hasPhase2: 1
   phase2Threshold: 0.5
   spriteFacesLeft: 1

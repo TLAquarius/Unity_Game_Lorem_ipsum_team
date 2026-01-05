@@ -79,6 +79,7 @@ GameObject:
   - component: {fileID: 2821858617661467737}
   - component: {fileID: 3375426484441582428}
   - component: {fileID: 3417054718826135969}
+  - component: {fileID: 4569560509814621910}
   m_Layer: 8
   m_Name: MeleeEnemy_01
   m_TagString: Untagged
@@ -256,21 +257,25 @@ MonoBehaviour:
   touchDamage: 5
   attackDamage: 20
   knockbackProfile: {x: 8, y: 5}
+  damageColor: {r: 1, g: 0, b: 0, a: 1}
+  flashDuration: 0.1
+  hitSound: {fileID: 0}
+  walkSound: {fileID: 0}
+  deathSound: {fileID: 0}
+  walkSoundInterval: 0.4
   currentState: 0
   spriteFacesLeft: 1
   isTank: 0
   hurtDuration: 0.5
   selfKnockback: {x: 3, y: 1}
   attackPoint: {fileID: 8646372971561631520}
-  groundCheck: {fileID: 0}
+  groundCheck: {fileID: 8724727899890252139}
   detectionLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 64
   moveSpeed: 2
   patrolWaitTime: 2
-  patrolPoints:
-  - {fileID: 6819803773147164804}
-  - {fileID: 3262985385881422822}
+  patrolRadius: 4
   detectionRange: 6
   attackTriggerRange: 1.7
   attackRate: 1.5
@@ -299,6 +304,103 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!82 &4569560509814621910
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4236940667035463655}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &4415823670847896488
 GameObject:
   m_ObjectHideFlags: 0
@@ -324,7 +426,7 @@ Transform:
   m_GameObject: {fileID: 4415823670847896488}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.56477714, y: 0.68745565, z: -0.050243713}
+  m_LocalPosition: {x: -0.62, y: -0.06, z: -0.050243713}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
